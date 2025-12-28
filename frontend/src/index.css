@@ -455,168 +455,254 @@ textarea:focus {
    Pretty Code - Semantic Typography Styles
    ======================================== */
 
+/* Semantic colors for code - matching monospace theme */
+:root {
+  --pretty-keyword: #d73a49;
+  --pretty-function: #6f42c1;
+  --pretty-string: #22863a;
+  --pretty-number: #005cc5;
+  --pretty-comment: #6a737d;
+  --pretty-variable: #24292e;
+  --pretty-property: #005cc5;
+  --pretty-operator: #d73a49;
+  --pretty-class: #6f42c1;
+  --pretty-constant: #005cc5;
+  --pretty-tag: #22863a;
+  --pretty-attr: #6f42c1;
+}
+
+.dark {
+  --pretty-keyword: #ff7b72;
+  --pretty-function: #d2a8ff;
+  --pretty-string: #a5d6ff;
+  --pretty-number: #79c0ff;
+  --pretty-comment: #8b949e;
+  --pretty-variable: #c9d1d9;
+  --pretty-property: #79c0ff;
+  --pretty-operator: #ff7b72;
+  --pretty-class: #d2a8ff;
+  --pretty-constant: #79c0ff;
+  --pretty-tag: #7ee787;
+  --pretty-attr: #d2a8ff;
+}
+
 /* Pretty code container */
 .pretty-code {
   font-family: var(--font-sans);
   font-size: 15px;
-  line-height: 1.7;
+  line-height: 1.9;
   letter-spacing: 0.01em;
-  padding: 20px 24px;
-  background-color: var(--color-code-bg);
-  border: 1px solid var(--color-code-border);
-  border-radius: 12px;
+  padding: 16px 20px;
   overflow-x: auto;
 }
 
-/* Structural keywords - Bold sans-serif */
+/* All tokens get hover effect */
+.pretty-code [class^="token-"] {
+  position: relative;
+  cursor: help;
+  border-radius: 3px;
+  padding: 1px 2px;
+  margin: -1px -2px;
+  transition: background-color 0.15s ease;
+}
+
+.pretty-code [class^="token-"]:hover {
+  background-color: var(--color-surface-hover);
+}
+
+/* Clickable token cursor */
+.pretty-code [class^="token-"][data-tooltip] {
+  cursor: pointer;
+}
+
+.pretty-code [class^="token-"][data-tooltip]:active {
+  background-color: var(--color-accent-light);
+}
+
+/* JS-controlled tooltip */
+.pretty-code-tooltip {
+  position: fixed;
+  padding: 8px 12px;
+  background: var(--color-text);
+  color: var(--color-background);
+  font-size: 11px;
+  font-weight: 400;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.5;
+  border-radius: 8px;
+  z-index: 99999;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  max-width: 200px;
+  animation: tooltipFadeIn 0.15s ease;
+}
+
+.pretty-code-tooltip-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Structural keywords - Bold, colored */
 .token-keyword {
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 15px;
-  color: var(--color-text);
+  font-size: 14px;
+  color: var(--pretty-keyword);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
 }
 
-/* Builtin types - Medium sans-serif */
+/* Builtin types */
 .token-builtin {
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 15px;
-  color: var(--color-text);
+  color: var(--pretty-class);
 }
 
-/* Class names - Bold, slightly larger */
+/* Class names - Bold, prominent */
 .token-class-name {
   font-family: var(--font-sans);
   font-weight: 600;
   font-size: 16px;
-  color: var(--color-text);
+  color: var(--pretty-class);
 }
 
-/* Functions - Medium weight, prominent */
+/* Functions - Medium weight, purple */
 .token-function {
   font-family: var(--font-sans);
   font-weight: 500;
   font-size: 15px;
-  color: var(--color-text);
+  color: var(--pretty-function);
 }
 
-/* Strings - Serif italic */
+/* Strings - Serif italic, green */
 .token-string {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
   font-size: 14px;
-  color: var(--color-text-secondary);
+  color: var(--pretty-string);
 }
 
-/* Regex - Serif with subtle styling */
+/* Regex */
 .token-regex {
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  opacity: 0.85;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--pretty-string);
+  opacity: 0.9;
 }
 
-/* Numbers - Tabular figures */
+/* Numbers - Blue, tabular */
 .token-number {
   font-family: var(--font-sans);
-  font-weight: 400;
+  font-weight: 500;
   font-size: 14px;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text);
+  color: var(--pretty-number);
 }
 
-/* Booleans - Bold for emphasis */
+/* Booleans - Bold keyword style */
 .token-boolean {
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 14px;
-  color: var(--color-text);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--pretty-constant);
 }
 
-/* Comments - Serif italic, lighter */
+/* Comments - Serif italic, muted */
 .token-comment {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 300;
   font-size: 13px;
-  color: var(--color-text-muted);
-  opacity: 0.75;
+  color: var(--pretty-comment);
 }
 
-/* Variables - Normal sans */
+/* Variables */
 .token-variable {
   font-family: var(--font-sans);
   font-weight: 400;
   font-size: 14px;
-  color: var(--color-text);
+  color: var(--pretty-variable);
 }
 
-/* Properties - Normal sans, slightly muted */
+/* Properties - Blue */
 .token-property {
   font-family: var(--font-sans);
   font-weight: 400;
   font-size: 14px;
-  color: var(--color-text-secondary);
+  color: var(--pretty-property);
 }
 
-/* Parameters - Smaller, subordinate */
+/* Parameters - Smaller, italic */
 .token-parameter {
   font-family: var(--font-sans);
   font-weight: 400;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  font-style: italic;
+  color: var(--pretty-variable);
+  opacity: 0.85;
 }
 
-/* Constants - Medium weight */
+/* Constants */
 .token-constant {
   font-family: var(--font-sans);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 14px;
-  color: var(--color-text);
+  color: var(--pretty-constant);
 }
 
-/* Operators - Subtle, lower opacity */
+/* Operators - Red, subtle */
 .token-operator {
   font-family: var(--font-sans);
   font-weight: 400;
   font-size: 14px;
-  color: var(--color-text);
-  opacity: 0.7;
+  color: var(--pretty-operator);
+  opacity: 0.8;
 }
 
 /* Punctuation - Very subtle */
 .token-punctuation {
   font-family: var(--font-sans);
   font-weight: 300;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-text-muted);
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
-/* HTML/JSX Tags - Bold */
+/* HTML/JSX Tags */
 .token-tag {
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 15px;
-  color: var(--color-text);
+  font-size: 14px;
+  color: var(--pretty-tag);
 }
 
-/* Attribute names - Medium */
+/* Attribute names */
 .token-attr-name {
   font-family: var(--font-sans);
   font-weight: 500;
   font-size: 14px;
-  color: var(--color-text-secondary);
+  color: var(--pretty-attr);
 }
 
-/* Namespace - Normal */
+/* Namespace */
 .token-namespace {
   font-family: var(--font-sans);
   font-weight: 400;
   font-size: 14px;
-  color: var(--color-text-secondary);
+  color: var(--pretty-class);
   opacity: 0.85;
 }
 
@@ -625,13 +711,22 @@ textarea:focus {
   font-family: var(--font-sans);
   font-weight: 400;
   font-size: 14px;
-  color: var(--color-text);
+  color: var(--pretty-variable);
 }
 
 /* Pretty code line wrapper */
 .pretty-code-line {
   display: block;
-  min-height: 1.7em;
+  min-height: 1.9em;
+  padding-left: 0;
+}
+
+/* Indentation visualization */
+.pretty-code-indent {
+  display: inline-block;
+  width: 24px;
+  border-left: 2px solid var(--color-border-light);
+  margin-left: 8px;
 }
 
 /* Collapsible blocks */

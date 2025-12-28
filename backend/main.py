@@ -175,6 +175,47 @@ async def set_cwd(path: str):
     return {"cwd": current_working_dir}
 
 
+class ExplainRequest(BaseModel):
+    token: str
+    tokenType: str
+    context: str
+    language: str
+
+
+@app.post("/api/explain")
+async def explain_token(request: ExplainRequest):
+    """Generate a detailed explanation for a code token using Claude."""
+    prompt = f"""Explain the following code token in the context provided. Be concise but thorough.
+
+Token: `{request.token}`
+Token Type: {request.tokenType}
+Language: {request.language}
+
+Full Code Context:
+```{request.language}
+{request.context}
+```
+
+Provide a helpful explanation that:
+1. Explains what this specific token does in this context
+2. Why it's used here
+3. Any important details a learner should know
+
+Keep the explanation under 150 words. Use simple language."""
+
+    try:
+        # Use a simple Claude runner for explanation
+        runner = ClaudeCodeRunner(working_dir=current_working_dir)
+        explanation = ""
+        async for chunk in runner.run(prompt):
+            explanation += chunk
+        await runner.stop()
+
+        return {"explanation": explanation.strip()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()

@@ -81,12 +81,9 @@ export default function Chat({
             <img src="/logo.png" alt="Pretty Code" className="w-20 h-20 rounded-2xl mb-6" />
 
             {/* Greeting */}
-            <h1 className="text-[28px] leading-[36px] font-normal text-text mb-3">
+            <h1 className="text-[28px] leading-[36px] font-normal text-text mb-8">
               Hi, how can I help you today?
             </h1>
-            <p className="text-[16px] leading-[24px] text-text-muted max-w-md mb-10">
-              Ask me to write code, explain concepts, debug issues, or explore new ideas.
-            </p>
 
             {/* Quick actions - Colorful chips */}
             <div className="flex flex-wrap justify-center gap-3 mb-12">
@@ -107,9 +104,6 @@ export default function Chat({
 
             {/* Demo code block */}
             <div className="w-full max-w-2xl text-left">
-              <p className="text-[13px] text-text-muted mb-3 text-center">
-                Toggle between <strong>Pretty</strong> and <strong>Classic</strong> modes with the button in the header
-              </p>
               <CodeBlock code={DEMO_CODE} language="javascript" />
             </div>
           </div>
