@@ -19,13 +19,17 @@ export default function Sidebar({
   const formatDate = (dateStr) => {
     const date = new Date(dateStr)
     const now = new Date()
-    const diff = now - date
 
-    if (diff < 86400000) {
+    // Get start of today and yesterday
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const startOfYesterday = new Date(startOfToday)
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1)
+
+    if (date >= startOfToday) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
-    if (diff < 604800000) {
-      return date.toLocaleDateString([], { weekday: 'short' })
+    if (date >= startOfYesterday) {
+      return 'Yesterday ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
   }
