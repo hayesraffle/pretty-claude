@@ -17,8 +17,8 @@ import { useConversationStorage } from './hooks/useConversationStorage'
 import { useCodeDisplayMode } from './contexts/CodeDisplayContext'
 import { useSettings } from './contexts/SettingsContext'
 
-// Tools that are considered safe (read-only)
-const SAFE_TOOLS = ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch']
+// Tools that are considered safe (read-only or low-risk)
+const SAFE_TOOLS = ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Task', 'TodoWrite', 'AskUserQuestion']
 
 function checkNeedsPermission(toolName, permissionMode) {
   if (permissionMode === 'bypassPermissions') return false

@@ -31,6 +31,21 @@ function ThinkingBlock({ content }) {
   )
 }
 
+// Fun active verbs for tool names
+const TOOL_VERBS = {
+  Read: 'Reading',
+  Edit: 'Editing',
+  Write: 'Writing',
+  Bash: 'Running',
+  Glob: 'Finding',
+  Grep: 'Searching',
+  WebFetch: 'Fetching',
+  WebSearch: 'Searching',
+  TodoWrite: 'Planning',
+  Task: 'Tasking',
+  AskUserQuestion: 'Asking',
+}
+
 // Grouped tool calls (collapsed by default)
 function ToolCallsGroup({ tools }) {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -43,8 +58,11 @@ function ToolCallsGroup({ tools }) {
   })
 
   const summary = Object.entries(counts)
-    .map(([name, count]) => count > 1 ? `${count} ${name}` : name)
-    .join(', ')
+    .map(([name, count]) => {
+      const verb = TOOL_VERBS[name] || name
+      return count > 1 ? `${verb} (${count})` : verb
+    })
+    .join(', ') + '...'
 
   return (
     <div className="text-xs text-text-muted">
