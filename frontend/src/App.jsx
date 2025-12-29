@@ -1,22 +1,54 @@
 import { useState, useEffect, useRef } from 'react'
-import { Wifi, WifiOff, Loader2, Trash2, Square, Sun, Moon, FolderOpen, Code, Type } from 'lucide-react'
+import { Wifi, WifiOff, Loader2, Trash2, Square, Sun, Moon, FolderOpen, Code, Type, Shield, ChevronDown } from 'lucide-react'
 import Chat from './components/Chat'
 import InputBox from './components/InputBox'
 import ExportMenu from './components/ExportMenu'
 import Sidebar from './components/Sidebar'
 import FileBrowser from './components/FileBrowser'
+import PermissionPrompt from './components/PermissionPrompt'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useDarkMode } from './hooks/useDarkMode'
 import { useCommandHistory } from './hooks/useCommandHistory'
 import { useConversationStorage } from './hooks/useConversationStorage'
 import { useCodeDisplayMode } from './contexts/CodeDisplayContext'
+import { useSettings } from './contexts/SettingsContext'
+
+const PERMISSION_MODES = [
+  { value: 'bypassPermissions', label: 'Bypass All', description: 'Auto-approve all tools' },
+  { value: 'acceptEdits', label: 'Accept Edits', description: 'Auto-approve reads, ask for writes' },
+  { value: 'default', label: 'Ask Each', description: 'Ask permission for each tool' },
+  { value: 'plan', label: 'Plan Mode', description: 'Plan before executing' },
+]
+
+// Tools that are considered safe (read-only)
+const SAFE_TOOLS = ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch']
+
+function checkNeedsPermission(toolName, permissionMode) {
+  if (permissionMode === 'bypassPermissions') return false
+  if (permissionMode === 'acceptEdits') {
+    // Only write/edit tools need permission
+    return !SAFE_TOOLS.includes(toolName)
+  }
+  // 'default' mode - all tools need permission
+  return true
+}
 
 function App() {
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [fileBrowserOpen, setFileBrowserOpen] = useState(false)
-  const { status, isStreaming, sendMessage, stopGeneration, onEvent } = useWebSocket()
+  const [permissionMenuOpen, setPermissionMenuOpen] = useState(false)
+  const [pendingPermissions, setPendingPermissions] = useState([]) // Track tool uses needing permission
+  const { permissionMode, setPermissionMode } = useSettings()
+  const {
+    status,
+    isStreaming,
+    sendMessage,
+    stopGeneration,
+    sendPermissionResponse,
+    onEvent,
+  } = useWebSocket(permissionMode)
   const { isDark, toggle: toggleDarkMode } = useDarkMode()
   const { globalMode, toggleGlobalMode } = useCodeDisplayMode()
   const { addToHistory, navigateHistory } = useCommandHistory()
@@ -48,6 +80,23 @@ function App() {
         const message = event.message || {}
         const content = message.content || []
 
+        // Check for tool_use that needs permission
+        for (const item of content) {
+          if (item.type === 'tool_use') {
+            const needsPermission = checkNeedsPermission(item.name, permissionMode)
+            if (needsPermission) {
+              setPendingPermissions((prev) => [
+                ...prev,
+                {
+                  id: item.id,
+                  name: item.name,
+                  input: item.input,
+                },
+              ])
+            }
+          }
+        }
+
         // Store the event for tool call rendering
         setMessages((prev) => {
           const updated = [...prev]
@@ -75,7 +124,16 @@ function App() {
           return updated
         })
       } else if (event.type === 'user') {
-        // Tool result - store for rendering
+        // Tool result - store for rendering and clear pending permission
+        const content = event.message?.content || []
+        for (const item of content) {
+          if (item.type === 'tool_result') {
+            setPendingPermissions((prev) =>
+              prev.filter((p) => p.id !== item.tool_use_id)
+            )
+          }
+        }
+
         setMessages((prev) => {
           const updated = [...prev]
           if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
@@ -139,10 +197,31 @@ Then refresh this page.`,
 
   const handleClear = () => {
     setMessages([])
+    setPendingPermissions([])
   }
 
   const handleStop = () => {
     stopGeneration()
+    setPendingPermissions([])
+  }
+
+  const handlePermissionApprove = (toolUseId) => {
+    sendPermissionResponse(toolUseId, true)
+    setPendingPermissions((prev) => prev.filter((p) => p.id !== toolUseId))
+  }
+
+  const handlePermissionReject = (toolUseId) => {
+    sendPermissionResponse(toolUseId, false)
+    setPendingPermissions((prev) => prev.filter((p) => p.id !== toolUseId))
+  }
+
+  const handleAlwaysAllow = (toolName) => {
+    // For now, just approve the current one
+    // Could store in localStorage to remember for future
+    pendingPermissions
+      .filter((p) => p.name === toolName)
+      .forEach((p) => sendPermissionResponse(p.id, true))
+    setPendingPermissions((prev) => prev.filter((p) => p.name !== toolName))
   }
 
   const handleQuickAction = (prompt) => {
@@ -256,6 +335,43 @@ Then refresh this page.`,
                 <FolderOpen size={18} />
               </button>
 
+              {/* Permission Mode Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setPermissionMenuOpen(!permissionMenuOpen)}
+                  className="btn-icon flex items-center gap-1"
+                  title="Permission mode"
+                >
+                  <Shield size={18} />
+                  <ChevronDown size={14} />
+                </button>
+                {permissionMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setPermissionMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-background border border-border rounded-lg shadow-lg z-50 py-1">
+                      {PERMISSION_MODES.map((mode) => (
+                        <button
+                          key={mode.value}
+                          onClick={() => {
+                            setPermissionMode(mode.value)
+                            setPermissionMenuOpen(false)
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-text/5 ${
+                            permissionMode === mode.value ? 'bg-accent/10 text-accent' : 'text-text'
+                          }`}
+                        >
+                          <div className="font-medium">{mode.label}</div>
+                          <div className="text-xs text-text-muted">{mode.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
               <button
                 onClick={toggleGlobalMode}
                 className="btn-icon"
@@ -302,6 +418,25 @@ Then refresh this page.`,
           onRegenerate={handleRegenerate}
           onEditMessage={handleEditMessage}
         />
+
+        {/* Permission Prompts */}
+        {pendingPermissions.length > 0 && (
+          <div className="flex-shrink-0 px-4 py-2 border-t border-border bg-background/95 backdrop-blur-sm">
+            <div className="max-w-3xl mx-auto space-y-2">
+              {pendingPermissions.map((perm) => (
+                <PermissionPrompt
+                  key={perm.id}
+                  toolName={perm.name}
+                  toolInput={perm.input}
+                  toolUseId={perm.id}
+                  onApprove={handlePermissionApprove}
+                  onReject={handlePermissionReject}
+                  onAlwaysAllow={handleAlwaysAllow}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Input */}
         <InputBox
