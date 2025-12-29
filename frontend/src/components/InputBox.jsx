@@ -13,14 +13,16 @@ function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNav
   const [isDragging, setIsDragging] = useState(false)
   const [attachedImages, setAttachedImages] = useState([])
   const [modeMenuOpen, setModeMenuOpen] = useState(false)
+  const isUserTyping = useRef(false)
 
-  // Focus textarea when value changes from quick action
+  // Focus textarea when value changes from quick action (external change, not user typing)
   useEffect(() => {
-    if (value && textareaRef.current) {
+    if (value && textareaRef.current && !isUserTyping.current) {
       textareaRef.current.focus()
       textareaRef.current.selectionStart = value.length
       textareaRef.current.selectionEnd = value.length
     }
+    isUserTyping.current = false
   }, [value])
 
   const handleDragOver = (e) => {
@@ -136,6 +138,7 @@ function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNav
   }
 
   const handleChange = (e) => {
+    isUserTyping.current = true
     onChange?.(e.target.value)
   }
 
