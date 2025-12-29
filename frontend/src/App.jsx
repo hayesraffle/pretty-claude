@@ -47,6 +47,7 @@ function App() {
   const [planReady, setPlanReady] = useState(false) // Plan is ready for approval
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
   const [workingDir, setWorkingDir] = useState('')
+  const [textQuestionAnswers, setTextQuestionAnswers] = useState(null)
   const { permissionMode, setPermissionMode: setPermissionModeSettings } = useSettings()
   const {
     status,
@@ -446,8 +447,6 @@ Then refresh this page.`,
       .forEach((p) => sendPermissionResponse(p.id, true))
     setPendingPermissions((prev) => prev.filter((p) => p.name !== toolName))
   }
-
-  const [textQuestionAnswers, setTextQuestionAnswers] = useState(null)
 
   const handleQuestionSubmit = (answers) => {
     if (pendingQuestion?.fromText) {
