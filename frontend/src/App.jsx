@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Wifi, WifiOff, Loader2, Trash2, Square, Sun, Moon, FolderOpen, Code, Type, Shield, ChevronDown, Settings } from 'lucide-react'
+import { Loader2, Trash2, Square, Sun, Moon, FolderOpen, Code, Type, Settings } from 'lucide-react'
 import Chat from './components/Chat'
 import InputBox from './components/InputBox'
 import ExportMenu from './components/ExportMenu'
@@ -17,18 +17,12 @@ import { useConversationStorage } from './hooks/useConversationStorage'
 import { useCodeDisplayMode } from './contexts/CodeDisplayContext'
 import { useSettings } from './contexts/SettingsContext'
 
-const PERMISSION_MODES = [
-  { value: 'bypassPermissions', label: 'Bypass All', description: 'Auto-approve all tools' },
-  { value: 'acceptEdits', label: 'Accept Edits', description: 'Auto-approve reads, ask for writes' },
-  { value: 'default', label: 'Ask Each', description: 'Ask permission for each tool' },
-  { value: 'plan', label: 'Plan Mode', description: 'Plan before executing' },
-]
-
 // Tools that are considered safe (read-only)
 const SAFE_TOOLS = ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch']
 
 function checkNeedsPermission(toolName, permissionMode) {
   if (permissionMode === 'bypassPermissions') return false
+  if (permissionMode === 'plan') return false // Plan mode handles permissions via CLI
   if (permissionMode === 'acceptEdits') {
     // Only write/edit tools need permission
     return !SAFE_TOOLS.includes(toolName)
@@ -42,7 +36,6 @@ function App() {
   const [inputValue, setInputValue] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [fileBrowserOpen, setFileBrowserOpen] = useState(false)
-  const [permissionMenuOpen, setPermissionMenuOpen] = useState(false)
   const [pendingPermissions, setPendingPermissions] = useState([]) // Track tool uses needing permission
   const [todos, setTodos] = useState([]) // Track TodoWrite tasks
   const [todoListCollapsed, setTodoListCollapsed] = useState(false)
@@ -456,43 +449,6 @@ Then refresh this page.`,
                 <FolderOpen size={18} />
               </button>
 
-              {/* Permission Mode Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setPermissionMenuOpen(!permissionMenuOpen)}
-                  className="btn-icon flex items-center gap-1"
-                  title="Permission mode"
-                >
-                  <Shield size={18} />
-                  <ChevronDown size={14} />
-                </button>
-                {permissionMenuOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setPermissionMenuOpen(false)}
-                    />
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-background border border-border rounded-lg shadow-lg z-50 py-1">
-                      {PERMISSION_MODES.map((mode) => (
-                        <button
-                          key={mode.value}
-                          onClick={() => {
-                            setPermissionMode(mode.value)
-                            setPermissionMenuOpen(false)
-                          }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-text/5 ${
-                            permissionMode === mode.value ? 'bg-accent/10 text-accent' : 'text-text'
-                          }`}
-                        >
-                          <div className="font-medium">{mode.label}</div>
-                          <div className="text-xs text-text-muted">{mode.description}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-
               <button
                 onClick={toggleGlobalMode}
                 className="btn-icon"
@@ -592,6 +548,9 @@ Then refresh this page.`,
           value={inputValue}
           onChange={setInputValue}
           onHistoryNavigate={handleHistoryNavigate}
+          permissionMode={permissionMode}
+          isStreaming={isStreaming}
+          onChangePermissionMode={setPermissionMode}
         />
       </div>
 

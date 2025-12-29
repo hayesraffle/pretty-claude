@@ -29,20 +29,6 @@ const TOOL_ICONS = {
   Task: Sparkles,
 }
 
-// Tool display names
-const TOOL_NAMES = {
-  Read: 'Read File',
-  Edit: 'Edit File',
-  Write: 'Write File',
-  Bash: 'Run Command',
-  Glob: 'Find Files',
-  Grep: 'Search Code',
-  WebFetch: 'Fetch URL',
-  WebSearch: 'Web Search',
-  TodoWrite: 'Update Todos',
-  Task: 'Spawn Agent',
-}
-
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false)
 
@@ -59,23 +45,55 @@ function CopyButton({ text }) {
   )
 }
 
-function CollapsibleSection({ title, icon: Icon, children, defaultOpen = true }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen)
+// Get a summary string for the collapsed state
+function getToolSummary(toolName, input) {
+  switch (toolName) {
+    case 'Read':
+      return input?.file_path?.split('/').pop() || 'file'
+    case 'Edit':
+      return input?.file_path?.split('/').pop() || 'file'
+    case 'Write':
+      return input?.file_path?.split('/').pop() || 'file'
+    case 'Bash':
+      const cmd = input?.command || ''
+      return cmd.length > 50 ? cmd.slice(0, 50) + '…' : cmd
+    case 'Glob':
+      return input?.pattern || 'pattern'
+    case 'Grep':
+      return input?.pattern || 'search'
+    case 'WebFetch':
+      return input?.url?.replace(/^https?:\/\//, '').slice(0, 40) || 'url'
+    case 'WebSearch':
+      return input?.query || 'search'
+    case 'Task':
+      const agentType = input?.subagent_type || 'agent'
+      const desc = input?.description || ''
+      return `${agentType}: ${desc}`
+    case 'TodoWrite':
+      const todos = input?.todos || []
+      const inProgress = todos.filter(t => t.status === 'in_progress').length
+      const completed = todos.filter(t => t.status === 'completed').length
+      return `${completed}/${todos.length} done${inProgress > 0 ? `, ${inProgress} active` : ''}`
+    default:
+      return ''
+  }
+}
 
-  return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 px-3 py-2 bg-surface hover:bg-surface-hover
-                   text-left text-sm font-medium"
-      >
-        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        {Icon && <Icon size={14} className="text-text-muted" />}
-        <span>{title}</span>
-      </button>
-      {isOpen && <div className="p-3 border-t border-border">{children}</div>}
-    </div>
-  )
+// Get short label for tool
+function getToolLabel(toolName) {
+  const labels = {
+    Read: 'Read',
+    Edit: 'Edit',
+    Write: 'Write',
+    Bash: '$',
+    Glob: 'Find',
+    Grep: 'Search',
+    WebFetch: 'Fetch',
+    WebSearch: 'Web',
+    TodoWrite: 'Todo',
+    Task: '',
+  }
+  return labels[toolName] ?? toolName
 }
 
 // Read file renderer
@@ -280,13 +298,19 @@ function getLanguageFromPath(filePath) {
 }
 
 // Main ToolCallView component
-export default function ToolCallView({ toolUse, toolResult, isCompact = false }) {
+export default function ToolCallView({ toolUse, toolResult }) {
+  const [isExpanded, setIsExpanded] = useState(false)
   const toolName = toolUse?.name || 'Unknown'
   const input = toolUse?.input || {}
   const result = toolResult?.content || toolResult
+  const isLoading = !toolResult
+
+  // Don't render TodoWrite - we have a dedicated panel for that
+  if (toolName === 'TodoWrite') return null
 
   const Icon = TOOL_ICONS[toolName] || Terminal
-  const displayName = TOOL_NAMES[toolName] || toolName
+  const label = getToolLabel(toolName)
+  const summary = getToolSummary(toolName, input)
 
   // Render the appropriate component based on tool type
   const renderContent = () => {
@@ -311,24 +335,35 @@ export default function ToolCallView({ toolUse, toolResult, isCompact = false })
     }
   }
 
-  if (isCompact) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-text-muted py-1">
-        <Icon size={14} />
-        <span>{displayName}</span>
-        {toolName === 'Read' && input.file_path && (
-          <code className="text-xs bg-surface px-1 rounded">{input.file_path.split('/').pop()}</code>
-        )}
-        {toolName === 'Bash' && input.command && (
-          <code className="text-xs bg-surface px-1 rounded truncate max-w-[200px]">{input.command}</code>
-        )}
-      </div>
-    )
-  }
-
   return (
-    <CollapsibleSection title={displayName} icon={Icon} defaultOpen={true}>
-      {renderContent()}
-    </CollapsibleSection>
+    <div className="relative">
+      {/* Collapsed header - always visible */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center gap-2 py-1.5 text-left text-sm text-text-muted
+                   hover:text-text transition-colors group"
+      >
+        <span className="text-text-muted/50 group-hover:text-text-muted transition-colors">
+          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </span>
+        <Icon size={14} className="flex-shrink-0" />
+        {label && <span className="text-text-muted">{label}</span>}
+        <span className="text-text truncate">{summary}</span>
+
+        {/* Loading shimmer */}
+        {isLoading && (
+          <div className="flex-1 h-1 ml-2 rounded-full overflow-hidden bg-border/30">
+            <div className="h-full w-1/3 bg-accent/50 rounded-full animate-shimmer" />
+          </div>
+        )}
+      </button>
+
+      {/* Expanded content */}
+      {isExpanded && (
+        <div className="ml-5 pl-3 border-l border-border/50 mt-1 mb-2">
+          {renderContent()}
+        </div>
+      )}
+    </div>
   )
 }

@@ -1,10 +1,18 @@
 import { useState, useEffect, useRef, memo } from 'react'
 import { Send, Image, FileText } from 'lucide-react'
 
-function InputBox({ onSend, disabled, value = '', onChange, onHistoryNavigate, onFilesDropped }) {
+const MODE_OPTIONS = [
+  { value: 'bypassPermissions', label: 'Bypass', color: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
+  { value: 'acceptEdits', label: 'Auto-read', color: 'bg-blue-500/20 text-blue-600 dark:text-blue-400' },
+  { value: 'default', label: 'Ask', color: 'bg-amber-500/20 text-amber-600 dark:text-amber-400' },
+  { value: 'plan', label: 'Plan', color: 'bg-purple-500/20 text-purple-600 dark:text-purple-400' },
+]
+
+function InputBox({ onSend, disabled, value = '', onChange, onHistoryNavigate, onFilesDropped, permissionMode, isStreaming, onChangePermissionMode }) {
   const textareaRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
   const [attachedImages, setAttachedImages] = useState([])
+  const [modeMenuOpen, setModeMenuOpen] = useState(false)
 
   // Focus textarea when value changes from quick action
   useEffect(() => {
@@ -210,19 +218,59 @@ function InputBox({ onSend, disabled, value = '', onChange, onHistoryNavigate, o
           </button>
         </div>
 
-        {/* Hints */}
-        <div className="flex items-center justify-center gap-4 mt-2 text-xs text-text-muted">
-          <span>
-            <kbd className="px-1.5 py-0.5 rounded bg-surface text-[10px] font-mono">Enter</kbd>
-            {' '}to send
-          </span>
-          <span>
-            <kbd className="px-1.5 py-0.5 rounded bg-surface text-[10px] font-mono">Shift+Enter</kbd>
-            {' '}for new line
-          </span>
-          <span className="opacity-60">
-            Drop files or images
-          </span>
+        {/* Status bar - aligned with input text */}
+        <div className="flex items-center justify-between mt-2 px-4 text-xs text-text-muted">
+          <div className="flex items-center gap-2">
+            {/* Mode badge - clickable menu */}
+            {permissionMode && (
+              <div className="relative">
+                <button
+                  onClick={() => setModeMenuOpen(!modeMenuOpen)}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors hover:opacity-80
+                             ${MODE_OPTIONS.find(m => m.value === permissionMode)?.color || ''}`}
+                  title="Click to change permission mode"
+                >
+                  {MODE_OPTIONS.find(m => m.value === permissionMode)?.label || permissionMode}
+                </button>
+                {modeMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setModeMenuOpen(false)} />
+                    <div className="absolute bottom-full left-0 mb-1 bg-background border border-border rounded-lg shadow-lg z-50 py-1 min-w-[100px]">
+                      {MODE_OPTIONS.map((mode) => (
+                        <button
+                          key={mode.value}
+                          onClick={() => {
+                            onChangePermissionMode?.(mode.value)
+                            setModeMenuOpen(false)
+                          }}
+                          className={`w-full text-left px-3 py-1.5 text-xs hover:bg-text/5 flex items-center gap-2
+                                     ${permissionMode === mode.value ? 'text-accent' : 'text-text'}`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${mode.color.split(' ')[0]}`} />
+                          {mode.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {/* Streaming indicator */}
+            {isStreaming && (
+              <span className="flex items-center gap-1.5 text-accent">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                Working...
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 opacity-60">
+            <span>
+              <kbd className="px-1 py-0.5 rounded bg-surface text-[10px] font-mono">↵</kbd> send
+            </span>
+            <span>
+              <kbd className="px-1 py-0.5 rounded bg-surface text-[10px] font-mono">⇧↵</kbd> newline
+            </span>
+          </div>
         </div>
       </div>
     </form>

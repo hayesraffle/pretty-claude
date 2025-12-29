@@ -1,7 +1,50 @@
 import { useState, createContext, useMemo } from 'react'
-import { Copy, Check, RefreshCw, Pencil } from 'lucide-react'
+import { Copy, Check, RefreshCw, Pencil, ChevronRight, ChevronDown } from 'lucide-react'
 import MarkdownRenderer from './MarkdownRenderer'
 import ToolCallView from './ToolCallView'
+
+// Compact summary of tool calls
+function ToolCallsSummary({ toolCalls }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  if (!toolCalls || toolCalls.length === 0) return null
+
+  // Count by type
+  const counts = {}
+  toolCalls.forEach(t => {
+    const name = t.name || 'Unknown'
+    counts[name] = (counts[name] || 0) + 1
+  })
+
+  const summary = Object.entries(counts)
+    .map(([name, count]) => count > 1 ? `${count} ${name}` : name)
+    .join(', ')
+
+  return (
+    <div className="text-xs text-text-muted">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-1 hover:text-text transition-colors py-1"
+      >
+        <span className="opacity-50">
+          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </span>
+        <span className="opacity-70">{summary}</span>
+      </button>
+      {isExpanded && (
+        <div className="ml-3 mt-1 space-y-0.5">
+          {toolCalls.map((tool) => (
+            <ToolCallView
+              key={tool.id}
+              toolUse={{ name: tool.name, input: tool.input }}
+              toolResult={tool.result}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // Context for controlling collapse state of nested blocks
 export const CollapseContext = createContext({ allCollapsed: false })
@@ -188,18 +231,10 @@ export default function Message({
 
   // AI message - includes tool calls and text content
   return (
-    <div className="animate-slide-up space-y-4">
-      {/* Tool calls */}
+    <div className="animate-slide-up space-y-2">
+      {/* Tool calls - compact summary */}
       {toolCalls.length > 0 && (
-        <div className="space-y-2">
-          {toolCalls.map((tool) => (
-            <ToolCallView
-              key={tool.id}
-              toolUse={{ name: tool.name, input: tool.input }}
-              toolResult={tool.result}
-            />
-          ))}
-        </div>
+        <ToolCallsSummary toolCalls={toolCalls} />
       )}
 
       {/* Text content */}
