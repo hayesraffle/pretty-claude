@@ -56,6 +56,7 @@ export default function Chat({
   onQuickAction,
   onRegenerate,
   onEditMessage,
+  permissionMode,
 }) {
   const bottomRef = useRef(null)
 
@@ -118,6 +119,7 @@ export default function Chat({
                 timestamp={message.timestamp}
                 isLast={index === lastAssistantAbsoluteIndex}
                 isStreaming={isStreaming && index === messages.length - 1 && message.role === 'assistant'}
+                permissionMode={permissionMode}
                 onRegenerate={
                   message.role === 'assistant' && !isStreaming ? onRegenerate : undefined
                 }

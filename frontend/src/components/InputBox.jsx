@@ -177,7 +177,7 @@ function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNav
         )}
 
         {/* Input container - Google AI Mode style */}
-        <div className={`relative flex items-end gap-2 p-1.5 rounded-[28px] bg-surface border
+        <div className={`relative flex items-center gap-2 p-1.5 rounded-[28px] bg-surface border
                         transition-all duration-200 hover:border-text-muted focus-within:border-accent
                         ${isDragging ? 'border-accent border-dashed bg-accent/5' : 'border-border'}`}>
           {/* Drop overlay */}

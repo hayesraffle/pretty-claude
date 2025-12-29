@@ -43,6 +43,7 @@ function App() {
   const [pendingQuestion, setPendingQuestion] = useState(null) // AskUserQuestion
   const [subAgentQuestions, setSubAgentQuestions] = useState([]) // Failed sub-agent AskUserQuestion
   const [planFile, setPlanFile] = useState(null) // Plan mode file path
+  const [planReady, setPlanReady] = useState(false) // Plan is ready for approval
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
   const [workingDir, setWorkingDir] = useState('')
   const { permissionMode, setPermissionMode: setPermissionModeSettings } = useSettings()
@@ -165,6 +166,19 @@ function App() {
                 if (item.type === 'text') {
                   textContent += item.text
                 }
+              }
+            }
+
+            // Detect plan ready state (Claude says plan is ready for approval)
+            if (permissionMode === 'plan') {
+              const planReadyPatterns = [
+                /ready to implement when you approve/i,
+                /ready for your approval/i,
+                /approve the plan/i,
+                /waiting for.*approval/i,
+              ]
+              if (planReadyPatterns.some(p => p.test(textContent))) {
+                setPlanReady(true)
               }
             }
 
@@ -367,10 +381,13 @@ Then refresh this page.`,
     setSubAgentQuestions(prev => prev.filter(q => q.id !== questionId))
   }
 
-  const handleExitPlanMode = () => {
+  const handleApprovePlan = () => {
     // Signal approval of the plan
-    sendMessage('approve')
+    sendMessage('approved')
     setPlanFile(null)
+    setPlanReady(false)
+    // Auto-switch to YOLO mode for execution
+    setPermissionMode('bypassPermissions')
   }
 
   const handleQuickAction = (prompt) => {
@@ -428,8 +445,8 @@ Then refresh this page.`,
     }
   }
 
-  const handleSelectConversation = (id) => {
-    const loaded = loadConversation(id)
+  const handleSelectConversation = async (id) => {
+    const loaded = await loadConversation(id)
     if (loaded) {
       setMessages(loaded.map(m => ({
         ...m,
@@ -540,8 +557,13 @@ Then refresh this page.`,
           </button>
         </header>
 
-        {/* Plan Mode Bar */}
-        <PlanModeBar planFile={planFile} onExitPlanMode={handleExitPlanMode} />
+        {/* Plan Mode Bar - show when plan is ready for approval */}
+        <PlanModeBar
+          planFile={planFile}
+          planReady={planReady}
+          permissionMode={permissionMode}
+          onApprovePlan={handleApprovePlan}
+        />
 
         {/* Chat area */}
         <Chat
@@ -550,6 +572,7 @@ Then refresh this page.`,
           onQuickAction={handleQuickAction}
           onRegenerate={handleRegenerate}
           onEditMessage={handleEditMessage}
+          permissionMode={permissionMode}
         />
 
         {/* Permission Prompts */}

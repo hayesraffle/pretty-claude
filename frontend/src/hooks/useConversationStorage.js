@@ -1,103 +1,178 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
-const STORAGE_KEY = 'pretty-code-conversations'
+const API_BASE = 'http://localhost:8000'
 const CURRENT_KEY = 'pretty-code-current'
-const MAX_CONVERSATIONS = 20
 
 export function useConversationStorage() {
   const [conversations, setConversations] = useState([])
   const [currentId, setCurrentId] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const conversationCacheRef = useRef(new Map()) // Cache full conversation data
 
-  // Load from localStorage on mount
+  // Load conversations list from backend on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        setConversations(JSON.parse(stored))
-      }
-      const current = localStorage.getItem(CURRENT_KEY)
-      if (current) {
-        setCurrentId(current)
-      }
-    } catch (e) {
-      console.error('Failed to load conversations:', e)
+    loadConversationsList()
+
+    // Also restore current ID from localStorage
+    const current = localStorage.getItem(CURRENT_KEY)
+    if (current) {
+      setCurrentId(current)
     }
   }, [])
 
-  // Save to localStorage when conversations change
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations))
-    } catch (e) {
-      console.error('Failed to save conversations:', e)
-    }
-  }, [conversations])
-
-  // Save current ID
+  // Save current ID to localStorage
   useEffect(() => {
     if (currentId) {
       localStorage.setItem(CURRENT_KEY, currentId)
+    } else {
+      localStorage.removeItem(CURRENT_KEY)
     }
   }, [currentId])
 
-  const saveConversation = useCallback((messages, title = null) => {
+  const loadConversationsList = async () => {
+    try {
+      setIsLoading(true)
+      const res = await fetch(`${API_BASE}/api/conversations`)
+      if (res.ok) {
+        const data = await res.json()
+        setConversations(data)
+      }
+    } catch (e) {
+      console.error('Failed to load conversations:', e)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const saveConversation = useCallback(async (messages, title = null) => {
     const id = currentId || Date.now().toString()
     const autoTitle = title || generateTitle(messages)
+    const updatedAt = new Date().toISOString()
 
+    const conversation = {
+      id,
+      title: autoTitle,
+      messages: messages.map(m => ({
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp?.toISOString?.() || m.timestamp || null,
+        images: m.images || null,
+        events: m.events || null,
+      })),
+      updatedAt,
+    }
+
+    // Optimistically update local state
     setConversations((prev) => {
       const existing = prev.findIndex((c) => c.id === id)
-      const updated = {
+      const summary = {
         id,
         title: autoTitle,
-        messages,
-        updatedAt: new Date().toISOString(),
+        updatedAt,
+        messageCount: messages.length,
       }
 
       if (existing >= 0) {
         const newList = [...prev]
-        newList[existing] = updated
+        newList[existing] = summary
         return newList
       }
 
-      // Add new conversation, keeping max limit
-      const newList = [updated, ...prev].slice(0, MAX_CONVERSATIONS)
-      return newList
+      return [summary, ...prev]
     })
+
+    // Update cache
+    conversationCacheRef.current.set(id, conversation)
+
+    // Save to backend
+    try {
+      await fetch(`${API_BASE}/api/conversations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(conversation),
+      })
+    } catch (e) {
+      console.error('Failed to save conversation:', e)
+    }
 
     setCurrentId(id)
     return id
   }, [currentId])
 
-  const loadConversation = useCallback((id) => {
-    const conv = conversations.find((c) => c.id === id)
-    if (conv) {
+  const loadConversation = useCallback(async (id) => {
+    // Check cache first
+    if (conversationCacheRef.current.has(id)) {
       setCurrentId(id)
-      return conv.messages
+      return conversationCacheRef.current.get(id).messages
+    }
+
+    // Load from backend
+    try {
+      const res = await fetch(`${API_BASE}/api/conversations/${id}`)
+      if (res.ok) {
+        const data = await res.json()
+        conversationCacheRef.current.set(id, data)
+        setCurrentId(id)
+        return data.messages
+      }
+    } catch (e) {
+      console.error('Failed to load conversation:', e)
     }
     return null
-  }, [conversations])
+  }, [])
 
   const newConversation = useCallback(() => {
     setCurrentId(null)
     return []
   }, [])
 
-  const deleteConversation = useCallback((id) => {
+  const deleteConversation = useCallback(async (id) => {
+    // Optimistically update local state
     setConversations((prev) => prev.filter((c) => c.id !== id))
+    conversationCacheRef.current.delete(id)
+
     if (currentId === id) {
       setCurrentId(null)
     }
+
+    // Delete from backend
+    try {
+      await fetch(`${API_BASE}/api/conversations/${id}`, {
+        method: 'DELETE',
+      })
+    } catch (e) {
+      console.error('Failed to delete conversation:', e)
+      // Reload list on error
+      loadConversationsList()
+    }
   }, [currentId])
 
-  const renameConversation = useCallback((id, title) => {
+  const renameConversation = useCallback(async (id, title) => {
+    // Update local state
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, title } : c))
     )
+
+    // If cached, update and save
+    if (conversationCacheRef.current.has(id)) {
+      const conv = conversationCacheRef.current.get(id)
+      conv.title = title
+      try {
+        await fetch(`${API_BASE}/api/conversations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(conv),
+        })
+      } catch (e) {
+        console.error('Failed to rename conversation:', e)
+      }
+    }
   }, [])
 
   return {
     conversations,
     currentId,
+    isLoading,
     saveConversation,
     loadConversation,
     newConversation,

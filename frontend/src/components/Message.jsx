@@ -163,6 +163,86 @@ function formatTime(date) {
   return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+// Helper to classify text as exploration vs summary in plan mode
+function classifyPlanText(text) {
+  if (!text) return { type: 'exploration', content: text }
+
+  // Summary indicators - markdown headings or certain phrases
+  const summaryPatterns = [
+    /^#+\s+/m,                          // Markdown headings
+    /^##\s+/m,
+    /Here's the summary/i,
+    /Here is the summary/i,
+    /\*\*Bug Found\*\*/,
+    /\*\*Fix\*\*/,
+    /\*\*Plan\*\*/,
+    /\*\*Solution\*\*/,
+    /\*\*Implementation\*\*/,
+  ]
+
+  // Exploration indicators
+  const explorationPatterns = [
+    /^I'll /,
+    /^Let me /,
+    /^I've found/,
+    /^I've identified/,
+    /^The agent found/,
+    /^The bug is now/,
+    /^Now I'll /,
+    /^First, /,
+    /explore the codebase/i,
+    /investigate/i,
+  ]
+
+  // Check if text contains summary content
+  const hasSummary = summaryPatterns.some(p => p.test(text))
+  const isExploration = explorationPatterns.some(p => p.test(text)) && !hasSummary
+
+  if (hasSummary) {
+    // Extract just the summary part (from first heading onwards)
+    const headingMatch = text.match(/^(#+\s+.+)/m)
+    if (headingMatch) {
+      const headingIndex = text.indexOf(headingMatch[0])
+      const exploration = text.slice(0, headingIndex).trim()
+      const summary = text.slice(headingIndex).trim()
+      return { type: 'mixed', exploration, summary }
+    }
+    return { type: 'summary', content: text }
+  }
+
+  if (isExploration) {
+    return { type: 'exploration', content: text }
+  }
+
+  return { type: 'summary', content: text }
+}
+
+// Collapsible exploration text for plan mode
+function ExplorationBlock({ content }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  if (!content) return null
+
+  return (
+    <div className="text-xs text-text-muted">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-1 hover:text-text transition-colors py-0.5"
+      >
+        <span className="opacity-50">
+          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </span>
+        <span className="opacity-70 italic">Exploring codebase...</span>
+      </button>
+      {isExpanded && (
+        <div className="ml-4 mt-1 text-text-muted opacity-70 whitespace-pre-wrap text-[13px] leading-relaxed border-l-2 border-text-muted/20 pl-3">
+          <MarkdownRenderer content={content} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Message({
   role,
   content,
@@ -171,6 +251,7 @@ export default function Message({
   timestamp,
   isLast,
   isStreaming,
+  permissionMode,
   onRegenerate,
   onEdit,
 }) {
@@ -179,6 +260,7 @@ export default function Message({
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(content)
   const [allCollapsed, setAllCollapsed] = useState(false)
+  const isPlanMode = permissionMode === 'plan'
 
   // Parse events into ordered blocks (text, thinking, tools)
   const blocks = useMemo(() => parseMessageBlocks(events), [events])
@@ -299,6 +381,24 @@ export default function Message({
       <CollapseContext.Provider value={{ allCollapsed }}>
         {blocks.map((block, i) => {
           if (block.type === 'text') {
+            // In plan mode, collapse exploration text
+            if (isPlanMode) {
+              const classified = classifyPlanText(block.content)
+              if (classified.type === 'exploration') {
+                return <ExplorationBlock key={i} content={classified.content} />
+              } else if (classified.type === 'mixed') {
+                return (
+                  <div key={i}>
+                    {classified.exploration && (
+                      <ExplorationBlock content={classified.exploration} />
+                    )}
+                    <div className="prose max-w-none">
+                      <MarkdownRenderer content={classified.summary} />
+                    </div>
+                  </div>
+                )
+              }
+            }
             return (
               <div key={i} className="prose max-w-none">
                 <MarkdownRenderer content={block.content} />

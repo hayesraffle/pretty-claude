@@ -15,6 +15,12 @@ from claude_runner import ClaudeCodeRunner
 UPLOAD_DIR = Path(tempfile.gettempdir()) / "pretty-code-uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
+# Create a data directory for persistent storage (in user's home directory)
+DATA_DIR = Path.home() / ".pretty-code"
+CONVERSATIONS_DIR = DATA_DIR / "conversations"
+DATA_DIR.mkdir(exist_ok=True)
+CONVERSATIONS_DIR.mkdir(exist_ok=True)
+
 app = FastAPI(title="pretty-code backend")
 
 # Track current working directory
@@ -290,6 +296,94 @@ Keep it under 80 words total. Use **bold** for emphasis. Be friendly and clear."
         }
     )
 
+
+# ============ Conversation Storage API ============
+
+class Message(BaseModel):
+    role: str
+    content: str
+    timestamp: str | None = None
+    images: list | None = None
+    events: list | None = None
+
+
+class Conversation(BaseModel):
+    id: str
+    title: str
+    messages: list[Message]
+    updatedAt: str
+
+
+class ConversationSummary(BaseModel):
+    id: str
+    title: str
+    updatedAt: str
+    messageCount: int
+
+
+@app.get("/api/conversations")
+async def list_conversations() -> list[ConversationSummary]:
+    """List all saved conversations (metadata only)."""
+    conversations = []
+    for filepath in CONVERSATIONS_DIR.glob("*.json"):
+        try:
+            data = json.loads(filepath.read_text())
+            conversations.append(ConversationSummary(
+                id=data.get("id", filepath.stem),
+                title=data.get("title", "Untitled"),
+                updatedAt=data.get("updatedAt", ""),
+                messageCount=len(data.get("messages", []))
+            ))
+        except Exception:
+            continue
+
+    # Sort by updatedAt descending
+    conversations.sort(key=lambda c: c.updatedAt, reverse=True)
+    return conversations
+
+
+@app.get("/api/conversations/{conv_id}")
+async def get_conversation(conv_id: str):
+    """Get a specific conversation by ID."""
+    filepath = CONVERSATIONS_DIR / f"{conv_id}.json"
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    try:
+        data = json.loads(filepath.read_text())
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/conversations")
+async def save_conversation(conversation: Conversation):
+    """Save a conversation (create or update)."""
+    filepath = CONVERSATIONS_DIR / f"{conversation.id}.json"
+
+    try:
+        data = conversation.model_dump()
+        filepath.write_text(json.dumps(data, indent=2))
+        return {"id": conversation.id, "status": "saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/conversations/{conv_id}")
+async def delete_conversation(conv_id: str):
+    """Delete a conversation."""
+    filepath = CONVERSATIONS_DIR / f"{conv_id}.json"
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    try:
+        filepath.unlink()
+        return {"id": conv_id, "status": "deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============ WebSocket Endpoint ============
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
