@@ -73,10 +73,10 @@ export default function Chat({
     lastAssistantIndex >= 0 ? messages.length - 1 - lastAssistantIndex : -1
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+      <div className="max-w-3xl mx-auto px-4 py-8 min-h-full">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in">
+          <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
             {/* Logo */}
             <img src="/logo.png" alt="Pretty Code" className="w-20 h-20 rounded-2xl mb-6" />
 

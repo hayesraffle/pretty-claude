@@ -163,7 +163,7 @@ Then refresh this page.`,
   }
 
   return (
-    <div className="h-screen flex bg-background">
+    <div className="h-screen flex bg-background overflow-hidden">
       {/* Sidebar */}
       <Sidebar
         conversations={conversations}
@@ -176,7 +176,7 @@ Then refresh this page.`,
       />
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Header */}
         <header className="flex-shrink-0 h-14 px-4 border-b border-border bg-background flex items-center">
           <div className="max-w-3xl mx-auto w-full flex items-center justify-between">

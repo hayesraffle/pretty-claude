@@ -492,7 +492,7 @@ textarea:focus {
   font-size: 15px;
   line-height: 1.9;
   letter-spacing: 0.01em;
-  padding: 16px 20px;
+  padding: 8px 20px;
   overflow-x: auto;
 }
 
@@ -551,6 +551,11 @@ textarea:focus {
 }
 
 /* Explanation popover content */
+.explanation-content {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
 .explanation-content p {
   margin: 0.5rem 0;
   line-height: 1.5;
@@ -575,6 +580,7 @@ textarea:focus {
   padding: 0.15em 0.35em;
   background: var(--color-surface);
   border-radius: 4px;
+  word-break: break-all;
 }
 
 /* Structural keywords - Bold, colored */

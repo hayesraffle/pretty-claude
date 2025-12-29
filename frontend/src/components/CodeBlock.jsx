@@ -49,7 +49,7 @@ export default function CodeBlock({ code, language = 'javascript' }) {
   const isOverridden = localMode !== null
 
   return (
-    <div className="relative my-4 rounded-xl overflow-hidden bg-code-bg code-mode-transition">
+    <div className="relative my-3 rounded-xl overflow-hidden bg-code-bg code-mode-transition">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2">
         <span className="text-[12px] leading-[16px] font-medium text-text-muted">
