@@ -47,7 +47,7 @@ const TOOL_VERBS = {
 }
 
 // Grouped tool calls (collapsed by default)
-function ToolCallsGroup({ tools }) {
+function ToolCallsGroup({ tools, explorationContent }) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Count by type for summary
@@ -57,12 +57,17 @@ function ToolCallsGroup({ tools }) {
     counts[name] = (counts[name] || 0) + 1
   })
 
-  const summary = Object.entries(counts)
+  const toolSummary = Object.entries(counts)
     .map(([name, count]) => {
       const verb = TOOL_VERBS[name] || name
       return count > 1 ? `${verb} (${count})` : verb
     })
-    .join(', ') + '...'
+    .join(', ')
+
+  // Combine exploration prefix with tool summary
+  const summary = explorationContent
+    ? `Exploring... ${toolSummary}`
+    : toolSummary + '...'
 
   return (
     <div className="text-xs text-text-muted">
@@ -77,6 +82,11 @@ function ToolCallsGroup({ tools }) {
       </button>
       {isExpanded && (
         <div className="ml-3 mt-1 space-y-0.5">
+          {explorationContent && (
+            <div className="text-text-muted opacity-70 whitespace-pre-wrap text-[13px] leading-relaxed border-l-2 border-text-muted/20 pl-3 mb-2">
+              <MarkdownRenderer content={explorationContent} />
+            </div>
+          )}
           {tools.map((tool) => (
             <ToolCallView
               key={tool.id}
@@ -376,14 +386,58 @@ export default function Message({
   }
 
   // AI message - render blocks in chronological order
+  // Pre-process blocks to combine exploration text with adjacent tools
+  const processedBlocks = useMemo(() => {
+    const result = []
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i]
+      const nextBlock = blocks[i + 1]
+
+      if (block.type === 'text' && isPlanMode) {
+        const classified = classifyPlanText(block.content)
+
+        // Check if exploration followed by tools - combine them
+        if (classified.type === 'exploration' && nextBlock?.type === 'tools') {
+          result.push({
+            type: 'tools-with-exploration',
+            tools: nextBlock.tools,
+            exploration: classified.content
+          })
+          i++ // Skip the tools block since we combined it
+          continue
+        }
+
+        if (classified.type === 'mixed' && nextBlock?.type === 'tools') {
+          // Add summary text first
+          if (classified.summary) {
+            result.push({ type: 'text', content: classified.summary })
+          }
+          // Combine exploration with tools
+          result.push({
+            type: 'tools-with-exploration',
+            tools: nextBlock.tools,
+            exploration: classified.exploration
+          })
+          i++ // Skip the tools block
+          continue
+        }
+
+        result.push({ ...block, classified })
+      } else {
+        result.push(block)
+      }
+    }
+    return result
+  }, [blocks, isPlanMode])
+
   return (
     <div className="animate-slide-up space-y-2">
       <CollapseContext.Provider value={{ allCollapsed }}>
-        {blocks.map((block, i) => {
+        {processedBlocks.map((block, i) => {
           if (block.type === 'text') {
-            // In plan mode, collapse exploration text
-            if (isPlanMode) {
-              const classified = classifyPlanText(block.content)
+            // In plan mode, use classified result if available
+            if (isPlanMode && block.classified) {
+              const classified = block.classified
               if (classified.type === 'exploration') {
                 return <ExplorationBlock key={i} content={classified.content} />
               } else if (classified.type === 'mixed') {
@@ -408,6 +462,8 @@ export default function Message({
             return <ThinkingBlock key={i} content={block.content} />
           } else if (block.type === 'tools') {
             return <ToolCallsGroup key={i} tools={block.tools} />
+          } else if (block.type === 'tools-with-exploration') {
+            return <ToolCallsGroup key={i} tools={block.tools} explorationContent={block.exploration} />
           }
           return null
         })}
