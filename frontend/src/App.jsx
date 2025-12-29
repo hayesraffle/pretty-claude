@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Wifi, WifiOff, Loader2, Trash2, Square, Sun, Moon, FolderOpen, Code, Type, Shield, ChevronDown } from 'lucide-react'
+import { Wifi, WifiOff, Loader2, Trash2, Square, Sun, Moon, FolderOpen, Code, Type, Shield, ChevronDown, Settings } from 'lucide-react'
 import Chat from './components/Chat'
 import InputBox from './components/InputBox'
 import ExportMenu from './components/ExportMenu'
@@ -9,6 +9,7 @@ import PermissionPrompt from './components/PermissionPrompt'
 import TodoList from './components/TodoList'
 import QuestionPrompt from './components/QuestionPrompt'
 import PlanModeBar from './components/PlanModeBar'
+import SettingsPanel from './components/SettingsPanel'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useDarkMode } from './hooks/useDarkMode'
 import { useCommandHistory } from './hooks/useCommandHistory'
@@ -48,6 +49,8 @@ function App() {
   const [todoListVisible, setTodoListVisible] = useState(true)
   const [pendingQuestion, setPendingQuestion] = useState(null) // AskUserQuestion
   const [planFile, setPlanFile] = useState(null) // Plan mode file path
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
+  const [workingDir, setWorkingDir] = useState('')
   const { permissionMode, setPermissionMode } = useSettings()
   const {
     status,
@@ -438,6 +441,14 @@ Then refresh this page.`,
                 {isDark ? <Sun size={18} /> : <Moon size={18} />}
               </button>
 
+              <button
+                onClick={() => setSettingsPanelOpen(true)}
+                className="btn-icon"
+                title="Settings"
+              >
+                <Settings size={18} />
+              </button>
+
               <div className="flex items-center gap-2 text-[13px]">
                 {status === 'connected' ? (
                   <span className="flex items-center gap-1.5 text-success">
@@ -533,6 +544,14 @@ Then refresh this page.`,
           onClose={() => setTodoListVisible(false)}
         />
       )}
+
+      {/* Settings Panel */}
+      <SettingsPanel
+        isOpen={settingsPanelOpen}
+        onClose={() => setSettingsPanelOpen(false)}
+        workingDir={workingDir}
+        onChangeWorkingDir={setWorkingDir}
+      />
     </div>
   )
 }
