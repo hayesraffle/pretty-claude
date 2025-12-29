@@ -61,6 +61,7 @@ export default function Message({
   role,
   content,
   events,
+  images,
   timestamp,
   isLast,
   onRegenerate,
@@ -141,7 +142,23 @@ export default function Message({
           ) : (
             <div className="group relative">
               <div className="px-4 py-3 rounded-[20px] bg-user-bubble text-user-text">
-                <p className="whitespace-pre-wrap text-[15px] leading-[22px]">{content}</p>
+                {/* Attached images */}
+                {images && images.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {images.map((img, i) => (
+                      <div key={i} className="relative">
+                        <img
+                          src={img.data}
+                          alt={img.name}
+                          className="max-h-48 max-w-full rounded-lg object-contain"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {content && (
+                  <p className="whitespace-pre-wrap text-[15px] leading-[22px]">{content}</p>
+                )}
               </div>
 
               {/* Edit button */}

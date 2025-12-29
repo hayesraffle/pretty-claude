@@ -1,12 +1,19 @@
 import asyncio
 import json
 import os
+import uuid
+import base64
+import tempfile
 from pathlib import Path
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 from claude_runner import ClaudeCodeRunner
+
+# Create a persistent temp directory for uploaded images
+UPLOAD_DIR = Path(tempfile.gettempdir()) / "pretty-code-uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 app = FastAPI(title="pretty-code backend")
 
@@ -174,6 +181,56 @@ async def set_cwd(path: str):
         raise HTTPException(status_code=400, detail="Path is not a directory")
     current_working_dir = path
     return {"cwd": current_working_dir}
+
+
+class ImageUpload(BaseModel):
+    name: str
+    type: str
+    data: str  # base64 data URL
+
+
+@app.post("/api/images/upload")
+async def upload_image(image: ImageUpload):
+    """Upload a base64 image and save to temp directory. Returns the file path."""
+    try:
+        # Parse base64 data URL
+        # Format: data:image/png;base64,iVBORw0KGgo...
+        if not image.data.startswith('data:'):
+            raise HTTPException(status_code=400, detail="Invalid data URL format")
+
+        header, b64_data = image.data.split(',', 1)
+
+        # Determine extension from mime type
+        mime_type = header.split(':')[1].split(';')[0]
+        ext_map = {
+            'image/png': '.png',
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/gif': '.gif',
+            'image/webp': '.webp',
+        }
+        ext = ext_map.get(mime_type, '.png')
+
+        # Generate unique filename
+        filename = f"{uuid.uuid4()}{ext}"
+        filepath = UPLOAD_DIR / filename
+
+        # Decode and save
+        image_data = base64.b64decode(b64_data)
+        filepath.write_bytes(image_data)
+
+        return {"path": str(filepath), "filename": filename}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/images/{filename}")
+async def get_image(filename: str):
+    """Serve an uploaded image."""
+    filepath = UPLOAD_DIR / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+    return FileResponse(filepath)
 
 
 class ExplainRequest(BaseModel):

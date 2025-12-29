@@ -115,6 +115,7 @@ export default function Chat({
                 role={message.role}
                 content={message.content}
                 events={message.events}
+                images={message.images}
                 timestamp={message.timestamp}
                 isLast={index === lastAssistantAbsoluteIndex}
                 onRegenerate={

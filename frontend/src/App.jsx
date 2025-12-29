@@ -211,12 +211,50 @@ function App() {
     })
   }, [onEvent, saveConversation])
 
-  const handleSend = useCallback((message) => {
+  const handleSend = useCallback(async (message, images = []) => {
     addToHistory(message)
-    setMessages((prev) => [...prev, { role: 'user', content: message, timestamp: new Date() }])
+
+    // Upload images first if any
+    let imagePaths = []
+    let imageData = []
+    if (images.length > 0) {
+      for (const img of images) {
+        try {
+          const res = await fetch('http://localhost:8000/api/images/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: img.name,
+              type: img.type,
+              data: img.data,
+            }),
+          })
+          const data = await res.json()
+          imagePaths.push(data.path)
+          imageData.push({ ...img, path: data.path, filename: data.filename })
+        } catch (e) {
+          console.error('Failed to upload image:', e)
+        }
+      }
+    }
+
+    // Build message with image paths for Claude
+    let fullMessage = message
+    if (imagePaths.length > 0) {
+      const pathsText = imagePaths.join(' ')
+      fullMessage = message ? `${message}\n\n[Images: ${pathsText}]` : `[Images: ${pathsText}]`
+    }
+
+    // Add to UI with image data for display
+    setMessages((prev) => [...prev, {
+      role: 'user',
+      content: message,
+      images: imageData,
+      timestamp: new Date()
+    }])
 
     if (status === 'connected') {
-      sendMessage(message)
+      sendMessage(fullMessage)
     } else {
       setTimeout(() => {
         setMessages((prev) => [
