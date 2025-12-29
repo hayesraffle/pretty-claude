@@ -1,23 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Code, FileText, Lightbulb, Wrench } from 'lucide-react'
 import Message from './Message'
-import CodeBlock from './CodeBlock'
-
-const DEMO_CODE = `function calculateTotal(items, taxRate) {
-  // Sum all item prices with tax
-  const subtotal = items.reduce((sum, item) => {
-    return sum + item.price * item.quantity;
-  }, 0);
-
-  const tax = subtotal * taxRate;
-  const total = subtotal + tax;
-
-  return {
-    subtotal: subtotal.toFixed(2),
-    tax: tax.toFixed(2),
-    total: total.toFixed(2)
-  };
-}`
 
 const quickActions = [
   {
@@ -57,6 +40,7 @@ export default function Chat({
   onRegenerate,
   onEditMessage,
   onQuestionSubmit,
+  onTestQuiz,
   permissionMode,
 }) {
   const bottomRef = useRef(null)
@@ -103,10 +87,15 @@ export default function Chat({
               ))}
             </div>
 
-            {/* Demo code block */}
-            <div className="w-full max-w-2xl text-left">
-              <CodeBlock code={DEMO_CODE} language="javascript" />
-            </div>
+            {/* Test quiz button */}
+            {onTestQuiz && (
+              <button
+                onClick={onTestQuiz}
+                className="text-sm text-text-muted hover:text-text transition-colors"
+              >
+                Preview quiz UI →
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-8">
