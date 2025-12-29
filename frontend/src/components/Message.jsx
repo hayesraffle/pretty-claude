@@ -175,64 +175,47 @@ function formatTime(date) {
 }
 
 // Helper to classify text as exploration vs summary in plan mode
+// Only hides truly verbose exploration text, keeps useful context visible
 function classifyPlanText(text) {
-  if (!text) return { type: 'exploration', content: text }
+  if (!text) return { type: 'summary', content: text }
 
-  // Summary indicators - markdown headings or certain phrases
-  const summaryPatterns = [
-    /^#+\s+/m,                          // Markdown headings
-    /^##\s+/m,
-    /Here's the summary/i,
-    /Here is the summary/i,
-    /\*\*Bug Found\*\*/,
-    /\*\*Fix\*\*/,
-    /\*\*Plan\*\*/,
-    /\*\*Solution\*\*/,
-    /\*\*Implementation\*\*/,
-  ]
-
-  // Exploration indicators
-  const explorationPatterns = [
-    /^I'll /,
-    /^Let me /,
-    /^I've found/,
-    /^I've identified/,
-    /^I've written/,
-    /^I see that/,
-    /^I have a/,
-    /^I can see/,
-    /^The agent found/,
-    /^The bug is now/,
-    /^Now I'll /,
-    /^Now let me/,
-    /^First, /,
-    /^Excellent!/,
-    /^Great!/,
-    /^Perfect!/,
-    /explore the codebase/i,
-    /investigate/i,
-    /clarifying questions/i,
-    /comprehensive plan/i,
-    /validate the approach/i,
-  ]
-
-  // Check if text contains summary content
-  const hasSummary = summaryPatterns.some(p => p.test(text))
-  const isExploration = explorationPatterns.some(p => p.test(text)) && !hasSummary
-
-  if (hasSummary) {
-    // Extract just the summary part (from first heading onwards)
-    const headingMatch = text.match(/^(#+\s+.+)/m)
-    if (headingMatch) {
-      const headingIndex = text.indexOf(headingMatch[0])
-      const exploration = text.slice(0, headingIndex).trim()
-      const summary = text.slice(headingIndex).trim()
-      return { type: 'mixed', exploration, summary }
-    }
+  // Short text is always shown (< 300 chars = ~2-3 sentences)
+  if (text.length < 300) {
     return { type: 'summary', content: text }
   }
 
-  if (isExploration) {
+  // Text with markdown headings is always shown
+  if (/^#+\s+/m.test(text)) {
+    return { type: 'summary', content: text }
+  }
+
+  // User-directed language should be shown
+  const userDirectedPatterns = [
+    /\?/,                    // Questions
+    /permission/i,           // Permission requests
+    /could you/i,            // Requests
+    /please/i,               // Polite requests
+    /let me ask/i,           // About to ask questions
+    /clarifying questions/i, // Questions
+    /\*\*Questions/i,        // Question section
+  ]
+  if (userDirectedPatterns.some(p => p.test(text))) {
+    return { type: 'summary', content: text }
+  }
+
+  // Only hide long, verbose exploration text (tool execution logs)
+  const verboseExplorationPatterns = [
+    /searching for/i,
+    /found \d+ files/i,
+    /reading file/i,
+    /examining/i,
+    /looking at/i,
+    /checking/i,
+  ]
+
+  const isVerboseExploration = verboseExplorationPatterns.some(p => p.test(text))
+
+  if (isVerboseExploration && text.length > 500) {
     return { type: 'exploration', content: text }
   }
 
@@ -422,21 +405,6 @@ export default function Message({
           continue
         }
 
-        if (classified.type === 'mixed' && nextBlock?.type === 'tools') {
-          // Add summary text first
-          if (classified.summary) {
-            result.push({ type: 'text', content: classified.summary })
-          }
-          // Combine exploration with tools
-          result.push({
-            type: 'tools-with-exploration',
-            tools: nextBlock.tools,
-            exploration: classified.exploration
-          })
-          i++ // Skip the tools block
-          continue
-        }
-
         result.push({ ...block, classified })
       } else {
         result.push(block)
@@ -451,22 +419,8 @@ export default function Message({
         {processedBlocks.map((block, i) => {
           if (block.type === 'text') {
             // In plan mode, use classified result if available
-            if (isPlanMode && block.classified) {
-              const classified = block.classified
-              if (classified.type === 'exploration') {
-                return <ExplorationBlock key={i} content={classified.content} />
-              } else if (classified.type === 'mixed') {
-                return (
-                  <div key={i}>
-                    {classified.exploration && (
-                      <ExplorationBlock content={classified.exploration} />
-                    )}
-                    <div className="prose max-w-none">
-                      <MarkdownRenderer content={classified.summary} />
-                    </div>
-                  </div>
-                )
-              }
+            if (isPlanMode && block.classified?.type === 'exploration') {
+              return <ExplorationBlock key={i} content={block.classified.content} />
             }
             return (
               <div key={i} className="prose max-w-none">
