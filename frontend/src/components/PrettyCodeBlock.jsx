@@ -228,7 +228,6 @@ function ExplanationPopover({ token, position, onClose, code, language, cachedCo
   const [inputValue, setInputValue] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [currentResponse, setCurrentResponse] = useState('')
-  const hasFetchedRef = useRef(false)
   const popoverRef = useRef(null)
   const contentRef = useRef(null)
   const inputRef = useRef(null)
@@ -362,15 +361,22 @@ function ExplanationPopover({ token, position, onClose, code, language, cachedCo
 
   // Initial fetch on mount (if no cached conversation)
   useEffect(() => {
-    if (hasFetchedRef.current) return
     if (!cachedConversation || cachedConversation.length === 0) {
-      hasFetchedRef.current = true
-      fetchResponse([])
+      // Set streaming state first, then fetch after a tick to ensure render
+      setIsStreaming(true)
+      const timeoutId = setTimeout(() => {
+        fetchResponse([])
+      }, 0)
+      return () => {
+        clearTimeout(timeoutId)
+        abortControllerRef.current?.abort()
+      }
     }
     return () => {
       abortControllerRef.current?.abort()
     }
-  }, [cachedConversation, fetchResponse])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Empty deps - only run on mount
 
   // Handle follow-up question click
   const handleFollowUp = useCallback((question) => {
@@ -582,31 +588,27 @@ Operators combine, compare, or transform values. Understanding operator preceden
 It plays a role in the logic of this program. Hover over related tokens to understand how they work together.`
 }
 
-// Breadcrumb pills component
-function Breadcrumbs({ items, onSelect, onClear }) {
+// Inline breadcrumb icons for a single line
+function LineBreadcrumbs({ items, onSelect, onHover, onHoverEnd }) {
   if (items.length === 0) return null
 
   return (
-    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/30 flex-wrap">
-      <span className="text-[10px] text-text-muted mr-1">Recent:</span>
+    <span className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-0.5
+                     opacity-40 hover:opacity-100 transition-opacity">
       {items.map((item, i) => (
         <button
           key={i}
           onClick={() => onSelect(item)}
-          className="px-2 py-0.5 text-xs rounded bg-surface hover:bg-surface-hover
-                     text-text-muted hover:text-text transition-colors font-mono"
+          onMouseEnter={() => onHover(item)}
+          onMouseLeave={onHoverEnd}
+          className="p-0.5 rounded text-text-muted hover:text-accent hover:bg-accent/10
+                     transition-colors"
+          title={item.token.content.trim()}
         >
-          {item.token.content.trim()}
+          <MessageCircle size={12} />
         </button>
       ))}
-      <button
-        onClick={onClear}
-        className="px-1.5 py-0.5 text-[10px] rounded hover:bg-surface-hover
-                   text-text-muted hover:text-text transition-colors"
-      >
-        Clear
-      </button>
-    </div>
+    </span>
   )
 }
 
@@ -631,9 +633,11 @@ function SelectionPopup({ position, onExplain }) {
 
 export default function PrettyCodeBlock({ code, language = 'javascript', isCollapsed }) {
   const [selectedToken, setSelectedToken] = useState(null)
+  const [selectedLineIndex, setSelectedLineIndex] = useState(null)
   const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 })
   const [hoveredTooltip, setHoveredTooltip] = useState({ text: null, position: { x: 0, y: 0 }, visible: false })
-  const [breadcrumbs, setBreadcrumbs] = useState([]) // Per code block breadcrumbs
+  const [breadcrumbs, setBreadcrumbs] = useState([]) // Per code block breadcrumbs with lineIndex
+  const [hoveredBreadcrumb, setHoveredBreadcrumb] = useState(null) // For highlighting source token
   const [selection, setSelection] = useState(null) // {text, rect}
   const conversationCacheRef = useRef(new Map()) // Cache conversations by token key
   const codeBlockRef = useRef(null)
@@ -660,7 +664,7 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
     setHoveredTooltip(prev => ({ ...prev, visible: false }))
   }
 
-  const handleTokenClick = (e, token, tokenTypes) => {
+  const handleTokenClick = (e, token, tokenTypes, lineIndex) => {
     e.stopPropagation()
     const rect = e.target.getBoundingClientRect()
     setPopoverPosition({
@@ -671,6 +675,7 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
       content: token,
       types: tokenTypes,
     })
+    setSelectedLineIndex(lineIndex)
     setSelection(null) // Clear selection when opening token popover
   }
 
@@ -680,20 +685,40 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
 
   // Handle adding breadcrumb when popover closes
   const handleAddBreadcrumb = useCallback((breadcrumb) => {
+    // Skip breadcrumbs for text selections (no line index)
+    if (selectedLineIndex === null) return
+
     setBreadcrumbs(prev => {
-      // Avoid duplicates
-      const exists = prev.some(b => b.token.content === breadcrumb.token.content)
+      // Avoid duplicates on same line
+      const exists = prev.some(b =>
+        b.token.content === breadcrumb.token.content && b.lineIndex === selectedLineIndex
+      )
       if (exists) return prev
-      // Keep last 5
-      return [...prev.slice(-4), breadcrumb]
+      // Keep last 10
+      return [...prev.slice(-9), { ...breadcrumb, lineIndex: selectedLineIndex }]
     })
-  }, [])
+  }, [selectedLineIndex])
 
   // Handle breadcrumb click - reopen popover
   const handleBreadcrumbSelect = useCallback((breadcrumb) => {
     setSelectedToken(breadcrumb.token)
+    setSelectedLineIndex(breadcrumb.lineIndex)
     setPopoverPosition(breadcrumb.position)
   }, [])
+
+  // Handle breadcrumb hover - highlight source token
+  const handleBreadcrumbHover = useCallback((breadcrumb) => {
+    setHoveredBreadcrumb(breadcrumb)
+  }, [])
+
+  const handleBreadcrumbHoverEnd = useCallback(() => {
+    setHoveredBreadcrumb(null)
+  }, [])
+
+  // Get breadcrumbs for a specific line
+  const getBreadcrumbsForLine = useCallback((lineIndex) => {
+    return breadcrumbs.filter(b => b.lineIndex === lineIndex)
+  }, [breadcrumbs])
 
   // Handle text selection
   const handleMouseUp = useCallback((e) => {
@@ -735,6 +760,7 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
       content: selection.text,
       types: ['selection'],
     })
+    setSelectedLineIndex(null) // Selections don't have a specific line
     setPopoverPosition({
       x: selection.rect.x,
       y: selection.rect.y + 50,
@@ -762,9 +788,10 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
               {tokens.map((line, lineIndex) => {
                 const originalLine = lines[lineIndex] || ''
                 const indentLevel = getIndentLevel(originalLine)
+                const lineBreadcrumbs = getBreadcrumbsForLine(lineIndex)
 
                 return (
-                  <div key={lineIndex} className="pretty-code-line">
+                  <div key={lineIndex} className="pretty-code-line group">
                     {/* Render indent guides */}
                     {Array.from({ length: indentLevel }).map((_, i) => (
                       <span key={i} className="pretty-code-indent" />
@@ -782,12 +809,17 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
                         return null
                       }
 
+                      // Check if this token should be highlighted (hovered breadcrumb matches)
+                      const isHighlighted = hoveredBreadcrumb &&
+                        hoveredBreadcrumb.lineIndex === lineIndex &&
+                        hoveredBreadcrumb.token.content.trim() === content.trim()
+
                       return (
                         <span
                           key={tokenIndex}
-                          className={cssClass}
+                          className={`${cssClass} ${isHighlighted ? 'ring-2 ring-accent ring-offset-1 rounded' : ''}`}
                           data-tooltip={tooltip}
-                          onClick={(e) => tooltip && handleTokenClick(e, content, tokenTypes)}
+                          onClick={(e) => tooltip && handleTokenClick(e, content, tokenTypes, lineIndex)}
                           onMouseEnter={(e) => handleTokenMouseEnter(e, tooltip)}
                           onMouseLeave={handleTokenMouseLeave}
                         >
@@ -795,16 +827,19 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
                         </span>
                       )
                     })}
+
+                    {/* Breadcrumb icons at end of line */}
+                    {lineBreadcrumbs.length > 0 && (
+                      <LineBreadcrumbs
+                        items={lineBreadcrumbs}
+                        onSelect={handleBreadcrumbSelect}
+                        onHover={handleBreadcrumbHover}
+                        onHoverEnd={handleBreadcrumbHoverEnd}
+                      />
+                    )}
                   </div>
                 )
               })}
-
-              {/* Breadcrumbs at bottom of code block */}
-              <Breadcrumbs
-                items={breadcrumbs}
-                onSelect={handleBreadcrumbSelect}
-                onClear={() => setBreadcrumbs([])}
-              />
             </div>
           )
         }}
