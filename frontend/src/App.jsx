@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Wifi, WifiOff, Loader2, Trash2, Square, Sun, Moon, FolderOpen } from 'lucide-react'
+import { Wifi, WifiOff, Loader2, Trash2, Square, Sun, Moon, FolderOpen, Code, Type } from 'lucide-react'
 import Chat from './components/Chat'
 import InputBox from './components/InputBox'
 import ExportMenu from './components/ExportMenu'
@@ -9,6 +9,7 @@ import { useWebSocket } from './hooks/useWebSocket'
 import { useDarkMode } from './hooks/useDarkMode'
 import { useCommandHistory } from './hooks/useCommandHistory'
 import { useConversationStorage } from './hooks/useConversationStorage'
+import { useCodeDisplayMode } from './contexts/CodeDisplayContext'
 
 function App() {
   const [messages, setMessages] = useState([])
@@ -17,6 +18,7 @@ function App() {
   const [fileBrowserOpen, setFileBrowserOpen] = useState(false)
   const { status, isStreaming, sendMessage, stopGeneration, onMessage } = useWebSocket()
   const { isDark, toggle: toggleDarkMode } = useDarkMode()
+  const { globalMode, toggleGlobalMode } = useCodeDisplayMode()
   const { addToHistory, navigateHistory } = useCommandHistory()
   const {
     conversations,
@@ -214,6 +216,14 @@ Then refresh this page.`,
                 title="Browse files"
               >
                 <FolderOpen size={18} />
+              </button>
+
+              <button
+                onClick={toggleGlobalMode}
+                className="btn-icon"
+                title={globalMode === 'pretty' ? 'Switch to monospace code' : 'Switch to pretty code'}
+              >
+                {globalMode === 'pretty' ? <Code size={18} /> : <Type size={18} />}
               </button>
 
               <button
