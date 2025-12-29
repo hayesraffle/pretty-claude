@@ -48,12 +48,10 @@ function App() {
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
   const [workingDir, setWorkingDir] = useState('')
   const [textQuestionAnswers, setTextQuestionAnswers] = useState(null)
-  const [sessionId, setSessionId] = useState(null) // Claude CLI session ID for context persistence
   const { permissionMode, setPermissionMode: setPermissionModeSettings } = useSettings()
   const {
     status,
     isStreaming,
-    currentSessionId,
     sendMessage,
     stopGeneration,
     sendPermissionResponse,
@@ -62,14 +60,7 @@ function App() {
     disconnect,
     connect,
     setPermissionMode: setPermissionModeWs,
-  } = useWebSocket(permissionMode, workingDir, sessionId)
-
-  // Update sessionId when we get a new one from Claude CLI
-  useEffect(() => {
-    if (currentSessionId && currentSessionId !== sessionId) {
-      setSessionId(currentSessionId)
-    }
-  }, [currentSessionId, sessionId])
+  } = useWebSocket(permissionMode, workingDir, currentId)
 
   // Combined handler that updates both settings and notifies backend
   const setPermissionMode = useCallback((mode) => {
@@ -185,17 +176,14 @@ function App() {
   }, [parseQuestionsFromText])
 
   // Load conversation from URL on mount
+  // The conversation ID is the Claude session ID, so loading sets up --resume automatically
   const initialLoadRef = useRef(false)
   useEffect(() => {
     if (currentId && !initialLoadRef.current && messages.length === 0) {
       initialLoadRef.current = true
       loadConversation(currentId).then(loaded => {
-        if (loaded) {
+        if (loaded?.messages) {
           setMessages(processLoadedMessages(loaded.messages))
-          // Restore session ID for context persistence
-          if (loaded.sessionId) {
-            setSessionId(loaded.sessionId)
-          }
         }
       })
     }
@@ -208,17 +196,12 @@ function App() {
       const urlId = match ? match[1] : null
       if (urlId && urlId !== currentId) {
         loadConversation(urlId).then(loaded => {
-          if (loaded) {
+          if (loaded?.messages) {
             setMessages(processLoadedMessages(loaded.messages))
-            // Restore session ID for context persistence
-            if (loaded.sessionId) {
-              setSessionId(loaded.sessionId)
-            }
           }
         })
       } else if (!urlId) {
         setMessages([])
-        setSessionId(null)
         newConversation()
       }
     }
@@ -423,11 +406,15 @@ function App() {
           })
         }
 
-        // Auto-save with session ID for context persistence
+        // Auto-save using Claude's session_id as the conversation ID
+        // This ensures URL and storage match the Claude CLI session
+        const conversationId = event.session_id
         if (autoSaveRef.current) clearTimeout(autoSaveRef.current)
         autoSaveRef.current = setTimeout(() => {
           setMessages((current) => {
-            if (current.length > 0) saveConversation(current, null, { sessionId })
+            if (current.length > 0 && conversationId) {
+              saveConversation(current, null, { explicitId: conversationId })
+            }
             return current
           })
         }, 1000)
@@ -508,8 +495,11 @@ function App() {
     }
     setMessages((prev) => {
       const updated = [...prev, newMessage]
-      // Save immediately after user submits (with sessionId for context persistence)
-      saveConversation(updated, null, { sessionId })
+      // Save immediately after user submits
+      // Use currentId if exists (continuing conversation), otherwise wait for Claude's session_id
+      if (currentId) {
+        saveConversation(updated, null, { explicitId: currentId, updateCurrentId: false })
+      }
       return updated
     })
 
@@ -630,7 +620,9 @@ Then refresh this page.`,
       }
       setMessages(prev => {
         const updated = [...prev, userMessage]
-        saveConversation(updated, null, { sessionId })
+        if (currentId) {
+          saveConversation(updated, null, { explicitId: currentId, updateCurrentId: false })
+        }
         return updated
       })
       sendMessage(answerText)
@@ -737,29 +729,23 @@ Then refresh this page.`,
   }
 
   const handleSelectConversation = async (id) => {
+    // The conversation ID is the Claude session ID, so selecting sets up --resume automatically
     const loaded = await loadConversation(id)
-    if (loaded) {
+    if (loaded?.messages) {
       setMessages(processLoadedMessages(loaded.messages))
-      // Restore session ID for context persistence
-      if (loaded.sessionId) {
-        setSessionId(loaded.sessionId)
-      } else {
-        setSessionId(null)
-      }
     }
   }
 
   const handleNewConversation = () => {
     // Save current conversation before switching (don't update currentId since we're leaving)
     if (messages.length > 0 && currentId) {
-      saveConversation(messages, null, { updateCurrentId: false, sessionId })
+      saveConversation(messages, null, { explicitId: currentId, updateCurrentId: false })
     }
     // Clear state and start fresh
     newConversation()
     setMessages([])
     setSubAgentQuestions([])
     hasSubAgentQuestionsRef.current = false
-    setSessionId(null) // Clear session for new conversation
   }
 
   return (

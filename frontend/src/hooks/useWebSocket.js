@@ -3,10 +3,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 const WS_BASE_URL = 'ws://localhost:8000/ws'
 
 export function useWebSocket(permissionMode = 'default', workingDir = '', sessionId = null) {
+  // sessionId is the conversation ID, which is also the Claude CLI session ID
+  // This enables --resume for conversation context persistence
   const [status, setStatus] = useState('disconnected') // disconnected, connecting, connected
   const [isStreaming, setIsStreaming] = useState(false)
   const [sessionInfo, setSessionInfo] = useState(null)
-  const [currentSessionId, setCurrentSessionId] = useState(sessionId) // Track session for context persistence
   const wsRef = useRef(null)
   const onEventRef = useRef(null)
   const permissionModeRef = useRef(permissionMode)
@@ -24,7 +25,6 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
 
   useEffect(() => {
     sessionIdRef.current = sessionId
-    if (sessionId) setCurrentSessionId(sessionId)
   }, [sessionId])
 
   const connect = useCallback(() => {
@@ -80,11 +80,8 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
           setIsStreaming(true)
         } else if (data.type === 'result') {
           setIsStreaming(false)
-          // Capture session_id for future resumption (maintains conversation context)
-          if (data.session_id) {
-            setCurrentSessionId(data.session_id)
-            sessionIdRef.current = data.session_id
-          }
+          // session_id is forwarded to App.jsx via onEvent callback
+          // App.jsx uses it as the conversation ID for persistence
         } else if (data.type === 'system' && data.subtype === 'stopped') {
           setIsStreaming(false)
         } else if (data.type === 'system' && data.subtype === 'error') {
@@ -174,7 +171,6 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
     status,
     isStreaming,
     sessionInfo,
-    currentSessionId,  // For conversation context persistence
     sendMessage,
     stopGeneration,
     sendPermissionResponse,

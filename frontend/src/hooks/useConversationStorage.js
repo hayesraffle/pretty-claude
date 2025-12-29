@@ -60,7 +60,9 @@ export function useConversationStorage() {
   }
 
   const saveConversation = useCallback(async (messages, title = null, options = {}) => {
-    const { explicitId, updateCurrentId = true, sessionId = null } = options
+    const { explicitId, updateCurrentId = true } = options
+    // Use explicitId (Claude's session_id) as the conversation ID
+    // This ensures URLs and storage match Claude CLI sessions
     const id = explicitId || currentId || Date.now().toString()
     const autoTitle = title || generateTitle(messages)
     const updatedAt = new Date().toISOString()
@@ -78,7 +80,6 @@ export function useConversationStorage() {
         questionsAnswered: m.questionsAnswered || null,
       })),
       updatedAt,
-      sessionId: sessionId || null,  // Claude CLI session ID for context persistence
     }
 
     // Optimistically update local state
@@ -121,11 +122,14 @@ export function useConversationStorage() {
   }, [currentId])
 
   const loadConversation = useCallback(async (id) => {
+    // The conversation ID is the Claude session ID
+    // Loading a conversation automatically sets up --resume via useWebSocket(currentId)
+
     // Check cache first
     if (conversationCacheRef.current.has(id)) {
       setCurrentId(id)
       const cached = conversationCacheRef.current.get(id)
-      return { messages: cached.messages, sessionId: cached.sessionId }
+      return { messages: cached.messages }
     }
 
     // Load from backend
@@ -135,7 +139,7 @@ export function useConversationStorage() {
         const data = await res.json()
         conversationCacheRef.current.set(id, data)
         setCurrentId(id)
-        return { messages: data.messages, sessionId: data.sessionId }
+        return { messages: data.messages }
       }
     } catch (e) {
       console.error('Failed to load conversation:', e)
