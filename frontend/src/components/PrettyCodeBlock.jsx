@@ -407,7 +407,9 @@ function ExplanationPopover({ token, position, onClose, code, language, cachedCo
   }, [conversation, token, position, onAddBreadcrumb, onClose])
 
   const baseLeft = Math.min(position.x, window.innerWidth - 340)
-  const baseTop = Math.min(position.y + 10, window.innerHeight - 450)
+  const baseTop = Math.min(position.y + 10, window.innerHeight - 200)
+  // Calculate max height to stay within viewport (with 16px margin)
+  const maxHeight = Math.max(200, window.innerHeight - baseTop - dragOffset.y - 16)
 
   // Clean display text (remove FOLLOWUPS marker if present)
   const cleanText = (text) => {
@@ -422,11 +424,12 @@ function ExplanationPopover({ token, position, onClose, code, language, cachedCo
       ref={popoverRef}
       className="fixed z-[10000] bg-background border border-border shadow-2xl
                  rounded-xl rounded-br-none
-                 w-80 min-w-64 min-h-48 max-h-[80vh] flex flex-col animate-fade-in
+                 w-80 min-w-64 min-h-48 flex flex-col animate-fade-in
                  resize overflow-hidden"
       style={{
         left: baseLeft + dragOffset.x,
         top: baseTop + dragOffset.y,
+        maxHeight: maxHeight,
       }}
       onClick={(e) => e.stopPropagation()}
     >
