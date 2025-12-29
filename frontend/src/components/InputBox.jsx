@@ -244,6 +244,7 @@ function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNav
             {permissionMode && (
               <div className="relative">
                 <button
+                  type="button"
                   onClick={() => setModeMenuOpen(!modeMenuOpen)}
                   className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors hover:opacity-80
                              ${MODE_OPTIONS.find(m => m.value === permissionMode)?.color || ''}`}
@@ -257,6 +258,7 @@ function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNav
                     <div className="absolute bottom-full left-0 mb-1 bg-background border border-border rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
                       {MODE_OPTIONS.map((mode) => (
                         <button
+                          type="button"
                           key={mode.value}
                           onClick={() => {
                             onChangePermissionMode?.(mode.value)
@@ -277,6 +279,7 @@ function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNav
             {/* Working directory */}
             {workingDir && (
               <button
+                type="button"
                 onClick={onChangeWorkingDir}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]
                            bg-surface hover:bg-text/10 transition-colors max-w-[200px]"
