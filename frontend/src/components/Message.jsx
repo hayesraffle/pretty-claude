@@ -274,6 +274,11 @@ export default function Message({
   // Parse events into ordered blocks (text, thinking, tools)
   const blocks = useMemo(() => parseMessageBlocks(events), [events])
 
+  // Check if any tools are still loading (no result yet)
+  const hasLoadingTools = useMemo(() => {
+    return blocks.some(block => block.type === 'tool' && !block.result)
+  }, [blocks])
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content)
     setCopied(true)
@@ -458,8 +463,8 @@ export default function Message({
         </div>
       )}
 
-      {/* Action buttons - shown on hover */}
-      {blocks.length > 0 && !isStreaming && (
+      {/* Action buttons - shown on hover when not loading */}
+      {blocks.length > 0 && !isStreaming && !hasLoadingTools && (
         <div className="flex items-center gap-1 mt-3 opacity-0 hover:opacity-100
                         focus-within:opacity-100 transition-opacity">
           {isLast && onRegenerate && (
@@ -481,8 +486,8 @@ export default function Message({
         </div>
       )}
 
-      {/* Streaming indicator at bottom */}
-      {isStreaming && <TypingIndicator />}
+      {/* Streaming indicator at bottom - show if streaming OR any tools still loading */}
+      {(isStreaming || hasLoadingTools) && <TypingIndicator />}
     </div>
   )
 }

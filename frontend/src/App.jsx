@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Loader2, Trash2, Sun, Moon, FolderOpen, Code, Type, Settings } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import Chat from './components/Chat'
@@ -106,6 +106,42 @@ function App() {
   const pendingAskUserQuestionsRef = useRef(new Map()) // Track AskUserQuestion tool_uses by id
   const autoApprovedPermissionsRef = useRef(new Set()) // Track auto-approved permissions to prevent duplicates
   const hasSubAgentQuestionsRef = useRef(false) // Track if we just added sub-agent questions (for sync check)
+
+  // Check if any tools are still loading (no result yet)
+  // This is used to show stop button and typing indicator even when events stop flowing
+  const hasLoadingTools = useMemo(() => {
+    const lastMessage = messages[messages.length - 1]
+    if (!lastMessage || lastMessage.role !== 'assistant' || !lastMessage.events) {
+      return false
+    }
+    // Build tool results map
+    const toolResults = new Map()
+    for (const event of lastMessage.events) {
+      if (event.type === 'user') {
+        const content = event.message?.content || []
+        for (const item of content) {
+          if (item.type === 'tool_result') {
+            toolResults.set(item.tool_use_id, true)
+          }
+        }
+      }
+    }
+    // Check if any tool_use doesn't have a result
+    for (const event of lastMessage.events) {
+      if (event.type === 'assistant') {
+        const content = event.message?.content || []
+        for (const item of content) {
+          if (item.type === 'tool_use' && !toolResults.has(item.id)) {
+            return true // Found a tool without result
+          }
+        }
+      }
+    }
+    return false
+  }, [messages])
+
+  // Combined "is working" state for UI elements like stop button
+  const isWorking = isStreaming || hasLoadingTools
 
   // Save conversation before page unload
   const messagesRef = useRef(messages)
@@ -797,7 +833,7 @@ Then refresh this page.`,
             <div className="flex items-center gap-4">
               <ExportMenu messages={messages} />
 
-              {messages.length > 0 && !isStreaming && (
+              {messages.length > 0 && !isWorking && (
                 <button
                   onClick={handleClear}
                   className="btn-icon"
@@ -938,12 +974,12 @@ Then refresh this page.`,
         <InputBox
           onSend={handleSend}
           onStop={handleStop}
-          disabled={isStreaming}
+          disabled={isWorking}
           value={inputValue}
           onChange={setInputValue}
           onHistoryNavigate={handleHistoryNavigate}
           permissionMode={permissionMode}
-          isStreaming={isStreaming}
+          isStreaming={isWorking}
           onChangePermissionMode={setPermissionMode}
           workingDir={workingDir}
           onChangeWorkingDir={() => setFileBrowserOpen(true)}
