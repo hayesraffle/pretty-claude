@@ -59,6 +59,7 @@ function App() {
   const [planFile, setPlanFile] = useState(null) // Plan mode file path
   const [planReady, setPlanReady] = useState(false) // Plan is ready for approval
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
+  const [showCodePreview, setShowCodePreview] = useState(false)
   const [workingDir, setWorkingDir] = useState('')
   const [textQuestionAnswers, setTextQuestionAnswers] = useState(null)
   const { permissionMode, setPermissionMode: setPermissionModeSettings } = useSettings()
@@ -913,6 +914,7 @@ Then refresh this page.`,
           onEditMessage={handleEditMessage}
           onQuestionSubmit={handleInlineQuestionSubmit}
           permissionMode={permissionMode}
+          showCodePreview={showCodePreview}
         />
 
         {/* Permission Prompts */}
@@ -1012,6 +1014,8 @@ Then refresh this page.`,
         onClose={() => setSettingsPanelOpen(false)}
         workingDir={workingDir}
         onChangeWorkingDir={handleChangeWorkingDir}
+        showCodePreview={showCodePreview}
+        onToggleCodePreview={() => setShowCodePreview(!showCodePreview)}
       />
     </div>
   )
