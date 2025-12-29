@@ -1,18 +1,26 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-const WS_URL = 'ws://localhost:8000/ws'
+const WS_BASE_URL = 'ws://localhost:8000/ws'
 
-export function useWebSocket() {
+export function useWebSocket(permissionMode = 'default') {
   const [status, setStatus] = useState('disconnected') // disconnected, connecting, connected
   const [isStreaming, setIsStreaming] = useState(false)
+  const [sessionInfo, setSessionInfo] = useState(null)
   const wsRef = useRef(null)
-  const onMessageRef = useRef(null)
+  const onEventRef = useRef(null)
+  const permissionModeRef = useRef(permissionMode)
+
+  // Update ref when permissionMode changes
+  useEffect(() => {
+    permissionModeRef.current = permissionMode
+  }, [permissionMode])
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 
     setStatus('connecting')
-    const ws = new WebSocket(WS_URL)
+    const url = `${WS_BASE_URL}?permissionMode=${permissionModeRef.current}`
+    const ws = new WebSocket(url)
 
     ws.onopen = () => {
       setStatus('connected')
@@ -21,6 +29,7 @@ export function useWebSocket() {
     ws.onclose = () => {
       setStatus('disconnected')
       setIsStreaming(false)
+      setSessionInfo(null)
       // Auto-reconnect after 3 seconds
       setTimeout(() => {
         if (wsRef.current === ws) {
@@ -36,14 +45,28 @@ export function useWebSocket() {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
-        if (onMessageRef.current) {
-          onMessageRef.current(data)
+
+        // Handle streaming state based on event types
+        if (data.type === 'system' && data.subtype === 'init') {
+          setIsStreaming(true)
+          setSessionInfo({
+            sessionId: data.session_id,
+            model: data.model,
+            tools: data.tools,
+            permissionMode: data.permissionMode,
+            agents: data.agents,
+          })
+        } else if (data.type === 'result') {
+          setIsStreaming(false)
+        } else if (data.type === 'system' && data.subtype === 'stopped') {
+          setIsStreaming(false)
+        } else if (data.type === 'system' && data.subtype === 'error') {
+          setIsStreaming(false)
         }
 
-        if (data.type === 'start') {
-          setIsStreaming(true)
-        } else if (data.type === 'complete' || data.type === 'error' || data.type === 'stopped') {
-          setIsStreaming(false)
+        // Forward all events to the callback
+        if (onEventRef.current) {
+          onEventRef.current(data)
         }
       } catch (e) {
         console.error('Failed to parse WebSocket message:', e)
@@ -74,8 +97,43 @@ export function useWebSocket() {
     }
   }, [])
 
-  const onMessage = useCallback((callback) => {
-    onMessageRef.current = callback
+  const sendPermissionResponse = useCallback((toolUseId, allowed) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'permission_response',
+        tool_use_id: toolUseId,
+        allowed,
+      }))
+    }
+  }, [])
+
+  const sendQuestionResponse = useCallback((answers) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'question_response',
+        answers,
+      }))
+    }
+  }, [])
+
+  const sendContinue = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'continue' }))
+    }
+  }, [])
+
+  const setPermissionMode = useCallback((mode) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'set_permission_mode',
+        mode,
+      }))
+    }
+    permissionModeRef.current = mode
+  }, [])
+
+  const onEvent = useCallback((callback) => {
+    onEventRef.current = callback
   }, [])
 
   // Connect on mount
@@ -87,9 +145,14 @@ export function useWebSocket() {
   return {
     status,
     isStreaming,
+    sessionInfo,
     sendMessage,
     stopGeneration,
-    onMessage,
+    sendPermissionResponse,
+    sendQuestionResponse,
+    sendContinue,
+    setPermissionMode,
+    onEvent,
     connect,
     disconnect,
   }

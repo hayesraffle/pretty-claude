@@ -16,7 +16,7 @@ function App() {
   const [inputValue, setInputValue] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [fileBrowserOpen, setFileBrowserOpen] = useState(false)
-  const { status, isStreaming, sendMessage, stopGeneration, onMessage } = useWebSocket()
+  const { status, isStreaming, sendMessage, stopGeneration, onEvent } = useWebSocket()
   const { isDark, toggle: toggleDarkMode } = useDarkMode()
   const { globalMode, toggleGlobalMode } = useCodeDisplayMode()
   const { addToHistory, navigateHistory } = useCommandHistory()
@@ -31,31 +31,64 @@ function App() {
   const streamingMessageRef = useRef('')
   const autoSaveRef = useRef(null)
 
-  // Handle incoming WebSocket messages
+  // Handle incoming WebSocket events (new JSON streaming format)
   useEffect(() => {
-    onMessage((data) => {
-      if (data.type === 'start') {
+    onEvent((event) => {
+      if (event.type === 'system' && event.subtype === 'init') {
+        // Session started - create empty assistant message
         streamingMessageRef.current = ''
-        setMessages((prev) => [...prev, { role: 'assistant', content: '', timestamp: new Date() }])
-      } else if (data.type === 'chunk') {
-        streamingMessageRef.current += data.content
+        setMessages((prev) => [...prev, {
+          role: 'assistant',
+          content: '',
+          events: [], // Store raw events for tool call rendering
+          timestamp: new Date()
+        }])
+      } else if (event.type === 'assistant') {
+        // Assistant message with content (text or tool_use)
+        const message = event.message || {}
+        const content = message.content || []
+
+        // Store the event for tool call rendering
         setMessages((prev) => {
           const updated = [...prev]
           if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
+            const lastMsg = updated[updated.length - 1]
+            const newEvents = [...(lastMsg.events || []), event]
+
+            // Extract text content for display
+            let textContent = ''
+            for (const evt of newEvents) {
+              const evtContent = evt.message?.content || []
+              for (const item of evtContent) {
+                if (item.type === 'text') {
+                  textContent += item.text
+                }
+              }
+            }
+
             updated[updated.length - 1] = {
-              ...updated[updated.length - 1],
-              content: streamingMessageRef.current,
+              ...lastMsg,
+              content: textContent,
+              events: newEvents,
             }
           }
           return updated
         })
-      } else if (data.type === 'error') {
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: `**Error:** ${data.content}`, timestamp: new Date() },
-        ])
-      } else if (data.type === 'complete') {
-        // Auto-save on completion
+      } else if (event.type === 'user') {
+        // Tool result - store for rendering
+        setMessages((prev) => {
+          const updated = [...prev]
+          if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
+            const lastMsg = updated[updated.length - 1]
+            updated[updated.length - 1] = {
+              ...lastMsg,
+              events: [...(lastMsg.events || []), event],
+            }
+          }
+          return updated
+        })
+      } else if (event.type === 'result') {
+        // Session complete - auto-save
         if (autoSaveRef.current) clearTimeout(autoSaveRef.current)
         autoSaveRef.current = setTimeout(() => {
           setMessages((current) => {
@@ -63,9 +96,14 @@ function App() {
             return current
           })
         }, 1000)
+      } else if (event.type === 'system' && event.subtype === 'error') {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: `**Error:** ${event.content}`, timestamp: new Date() },
+        ])
       }
     })
-  }, [onMessage, saveConversation])
+  }, [onEvent, saveConversation])
 
   const handleSend = (message) => {
     addToHistory(message)

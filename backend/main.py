@@ -209,12 +209,18 @@ Keep it under 80 words total. Use **bold** for emphasis. Be friendly and clear."
 
     async def generate():
         try:
-            runner = ClaudeCodeRunner(working_dir=current_working_dir)
-            async for chunk in runner.run(prompt):
-                # Send each chunk as SSE
-                yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+            runner = ClaudeCodeRunner(working_dir=current_working_dir, permission_mode="bypassPermissions")
+            async for event in runner.run(prompt):
+                # Extract text content from assistant messages
+                if event.get("type") == "assistant":
+                    message = event.get("message", {})
+                    content = message.get("content", [])
+                    for item in content:
+                        if item.get("type") == "text":
+                            yield f"data: {json.dumps({'chunk': item.get('text', '')})}\n\n"
+                elif event.get("type") == "result":
+                    yield f"data: {json.dumps({'done': True})}\n\n"
             await runner.stop()
-            yield f"data: {json.dumps({'done': True})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
@@ -232,9 +238,11 @@ Keep it under 80 words total. Use **bold** for emphasis. Be friendly and clear."
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
-    # Get working directory from query params or use current
-    working_dir = websocket.query_params.get("cwd", os.getcwd())
-    runner = ClaudeCodeRunner(working_dir=working_dir)
+    # Get params from query string
+    working_dir = websocket.query_params.get("cwd", current_working_dir)
+    permission_mode = websocket.query_params.get("permissionMode", "default")
+
+    runner = ClaudeCodeRunner(working_dir=working_dir, permission_mode=permission_mode)
     active_connections[websocket] = runner
 
     try:
@@ -242,36 +250,47 @@ async def websocket_endpoint(websocket: WebSocket):
             # Receive message from client
             data = await websocket.receive_text()
             message_data = json.loads(data)
+            msg_type = message_data.get("type")
 
-            if message_data.get("type") == "message":
+            if msg_type == "message":
                 user_message = message_data.get("content", "")
 
-                # Send start indicator
-                await websocket.send_json({
-                    "type": "start",
-                    "content": ""
-                })
+                # Stream JSON events from Claude CLI
+                async for event in runner.run(user_message):
+                    # Forward the raw JSON event to frontend
+                    await websocket.send_json(event)
 
-                # Stream Claude's response
-                full_response = ""
-                async for chunk in runner.run(user_message):
-                    full_response += chunk
-                    await websocket.send_json({
-                        "type": "chunk",
-                        "content": chunk
-                    })
+            elif msg_type == "permission_response":
+                # Forward permission response to CLI
+                tool_use_id = message_data.get("tool_use_id")
+                allowed = message_data.get("allowed", False)
+                await runner.send_permission_response(tool_use_id, allowed)
 
-                # Send completion indicator
-                await websocket.send_json({
-                    "type": "complete",
-                    "content": full_response
-                })
+            elif msg_type == "question_response":
+                # Forward question answers to CLI
+                answers = message_data.get("answers", {})
+                await runner.send_question_response(answers)
 
-            elif message_data.get("type") == "stop":
+            elif msg_type == "continue":
+                # Send continue signal
+                await runner.send_continue()
+
+            elif msg_type == "stop":
                 await runner.stop()
                 await websocket.send_json({
-                    "type": "stopped",
-                    "content": ""
+                    "type": "system",
+                    "subtype": "stopped",
+                    "content": "Session stopped by user"
+                })
+
+            elif msg_type == "set_permission_mode":
+                # Update permission mode for next run
+                new_mode = message_data.get("mode", "default")
+                runner.permission_mode = new_mode
+                await websocket.send_json({
+                    "type": "system",
+                    "subtype": "config",
+                    "permissionMode": new_mode
                 })
 
     except WebSocketDisconnect:
@@ -279,7 +298,8 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         try:
             await websocket.send_json({
-                "type": "error",
+                "type": "system",
+                "subtype": "error",
                 "content": str(e)
             })
         except:
