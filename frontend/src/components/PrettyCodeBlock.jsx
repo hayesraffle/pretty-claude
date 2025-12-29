@@ -220,6 +220,22 @@ function getIndentLevel(line) {
   return match ? Math.floor(match[1].length / 2) : 0
 }
 
+// Truncate multi-line text for header display (first line + ... + last line)
+function truncateForHeader(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim())
+  if (lines.length <= 1) {
+    // Single line - truncate if too long
+    const line = lines[0] || text.trim()
+    return line.length > 40 ? line.slice(0, 37) + '...' : line
+  }
+  // Multi-line: first line + ... + last line
+  const first = lines[0].trim()
+  const last = lines[lines.length - 1].trim()
+  const truncFirst = first.length > 30 ? first.slice(0, 27) + '...' : first
+  const truncLast = last.length > 30 ? last.slice(0, 27) + '...' : last
+  return `${truncFirst}\n...\n${truncLast}`
+}
+
 // Explanation Popover Component - Mini-chat with follow-ups
 function ExplanationPopover({ token, position, onClose, code, language, cachedConversation, onCacheConversation, onAddBreadcrumb }) {
   // Conversation state: [{role: 'user'|'assistant', content: string}]
@@ -435,19 +451,21 @@ function ExplanationPopover({ token, position, onClose, code, language, cachedCo
     >
       {/* Header - draggable */}
       <div
-        className={`flex items-center justify-between px-3 py-2 border-b border-border bg-surface shrink-0
+        className={`flex items-start justify-between px-3 py-2 border-b border-border bg-surface shrink-0
                     rounded-t-xl ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handleMouseDown}
       >
-        <div className="flex items-center gap-2">
-          <code className="font-mono text-sm text-accent">{token.content.trim()}</code>
-          <span className="text-[10px] text-text-muted px-1.5 py-0.5 bg-surface-hover rounded">
+        <div className="flex items-start gap-2 min-w-0 flex-1">
+          <code className="font-mono text-xs text-accent whitespace-pre-wrap break-all leading-tight">
+            {truncateForHeader(token.content)}
+          </code>
+          <span className="text-[10px] text-text-muted px-1.5 py-0.5 bg-surface-hover rounded shrink-0">
             {token.types[0]}
           </span>
         </div>
         <button
           onClick={handleClose}
-          className="p-1 rounded hover:bg-surface-hover text-text-muted hover:text-text"
+          className="p-1 rounded hover:bg-surface-hover text-text-muted hover:text-text shrink-0 ml-2"
         >
           <X size={14} />
         </button>
@@ -771,21 +789,38 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
             posY = rect.top - 8
           }
 
-          // Try to find the line index from the selection's container
-          let lineIndex = null
-          const startContainer = range.startContainer
-          const lineElement = startContainer.nodeType === Node.TEXT_NODE
-            ? startContainer.parentElement?.closest('.pretty-code-line')
-            : startContainer.closest?.('.pretty-code-line')
-          if (lineElement && codeBlockRef.current) {
+          // Find start and end line indices for highlighting
+          let startLineIndex = null
+          let endLineIndex = null
+
+          if (codeBlockRef.current) {
             const allLines = codeBlockRef.current.querySelectorAll('.pretty-code-line')
-            lineIndex = Array.from(allLines).indexOf(lineElement)
-            if (lineIndex === -1) lineIndex = null
+
+            // Start line
+            const startContainer = range.startContainer
+            const startLineElement = startContainer.nodeType === Node.TEXT_NODE
+              ? startContainer.parentElement?.closest('.pretty-code-line')
+              : startContainer.closest?.('.pretty-code-line')
+            if (startLineElement) {
+              startLineIndex = Array.from(allLines).indexOf(startLineElement)
+              if (startLineIndex === -1) startLineIndex = null
+            }
+
+            // End line
+            const endContainer = range.endContainer
+            const endLineElement = endContainer.nodeType === Node.TEXT_NODE
+              ? endContainer.parentElement?.closest('.pretty-code-line')
+              : endContainer.closest?.('.pretty-code-line')
+            if (endLineElement) {
+              endLineIndex = Array.from(allLines).indexOf(endLineElement)
+              if (endLineIndex === -1) endLineIndex = null
+            }
           }
 
           setSelection({
             text,
-            lineIndex,
+            startLineIndex,
+            endLineIndex,
             rect: {
               x: posX,
               y: posY,
@@ -813,8 +848,10 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
     setSelectedToken({
       content: selection.text,
       types: ['selection'],
+      startLineIndex: selection.startLineIndex,
+      endLineIndex: selection.endLineIndex,
     })
-    setSelectedLineIndex(selection.lineIndex) // Use detected line index
+    setSelectedLineIndex(selection.startLineIndex) // Use start line for breadcrumb
     setPopoverPosition({
       x: selection.rect.x,
       y: selection.rect.y + 50,
@@ -845,8 +882,18 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
                 const indentLevel = getIndentLevel(originalLine)
                 const lineBreadcrumbs = getBreadcrumbsForLine(lineIndex)
 
+                // Check if this line is part of a selection being explained
+                const isSelectionLine = selectedToken?.types?.includes('selection') &&
+                  selectedToken.startLineIndex != null &&
+                  selectedToken.endLineIndex != null &&
+                  lineIndex >= selectedToken.startLineIndex &&
+                  lineIndex <= selectedToken.endLineIndex
+
                 return (
-                  <div key={lineIndex} className="pretty-code-line group">
+                  <div
+                    key={lineIndex}
+                    className={`pretty-code-line group ${isSelectionLine ? 'bg-pretty-selection rounded' : ''}`}
+                  >
                     {/* Render indent guides */}
                     {Array.from({ length: indentLevel }).map((_, i) => (
                       <span key={i} className="pretty-code-indent" />

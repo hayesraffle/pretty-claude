@@ -388,6 +388,11 @@ code ::selection,
   color: var(--selection-color, var(--color-text)) !important;
 }
 
+/* Background highlight for selected lines being explained */
+.bg-pretty-selection {
+  background-color: var(--color-pretty-selection);
+}
+
 /* Prose/Markdown content - Google style */
 .prose {
   font-size: 16px;
