@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 from claude_runner import ClaudeCodeRunner
+import anthropic
 
 # Create a persistent temp directory for uploaded images
 UPLOAD_DIR = Path(tempfile.gettempdir()) / "pretty-code-uploads"
@@ -248,7 +249,7 @@ class ExplainRequest(BaseModel):
 
 @app.post("/api/explain")
 async def explain_token(request: ExplainRequest):
-    """Generate a detailed explanation for a code token using Claude (streaming)."""
+    """Generate a detailed explanation for a code token using Claude Haiku (fast, streaming)."""
     prompt = f"""You are a code tutor explaining a specific part of code to a learner.
 
 Token: `{request.token}`
@@ -272,18 +273,19 @@ Keep it under 80 words total. Use **bold** for emphasis. Be friendly and clear."
 
     async def generate():
         try:
-            runner = ClaudeCodeRunner(working_dir=current_working_dir, permission_mode="bypassPermissions")
-            async for event in runner.run(prompt):
-                # Extract text content from assistant messages
-                if event.get("type") == "assistant":
-                    message = event.get("message", {})
-                    content = message.get("content", [])
-                    for item in content:
-                        if item.get("type") == "text":
-                            yield f"data: {json.dumps({'chunk': item.get('text', '')})}\n\n"
-                elif event.get("type") == "result":
-                    yield f"data: {json.dumps({'done': True})}\n\n"
-            await runner.stop()
+            client = anthropic.AsyncAnthropic()
+
+            async with client.messages.stream(
+                model="claude-3-5-haiku-latest",
+                max_tokens=256,
+                messages=[{"role": "user", "content": prompt}],
+            ) as stream:
+                async for text in stream.text_stream:
+                    yield f"data: {json.dumps({'chunk': text})}\n\n"
+
+            yield f"data: {json.dumps({'done': True})}\n\n"
+        except anthropic.APIError as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
