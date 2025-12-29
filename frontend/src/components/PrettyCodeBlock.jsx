@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Highlight, themes } from 'prism-react-renderer'
 import { X } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { getTokenClass } from '../utils/tokenTypography'
 
 const API_BASE = 'http://localhost:8000'
@@ -236,6 +237,9 @@ function ExplanationPopover({ token, position, onClose, code, language }) {
   }, [onClose])
 
   useEffect(() => {
+    const abortController = new AbortController()
+    let cancelled = false
+
     const fetchExplanation = async () => {
       setIsStreaming(true)
       setExplanation('')
@@ -250,6 +254,7 @@ function ExplanationPopover({ token, position, onClose, code, language }) {
             context: code,
             language: language,
           }),
+          signal: abortController.signal,
         })
 
         if (!res.ok) throw new Error('Failed to get explanation')
@@ -258,6 +263,7 @@ function ExplanationPopover({ token, position, onClose, code, language }) {
         const decoder = new TextDecoder()
 
         while (true) {
+          if (cancelled) break
           const { done, value } = await reader.read()
           if (done) break
 
@@ -268,7 +274,7 @@ function ExplanationPopover({ token, position, onClose, code, language }) {
             if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6))
-                if (data.chunk) {
+                if (data.chunk && !cancelled) {
                   setExplanation(prev => prev + data.chunk)
                 } else if (data.done) {
                   setIsStreaming(false)
@@ -282,15 +288,25 @@ function ExplanationPopover({ token, position, onClose, code, language }) {
             }
           }
         }
-      } catch {
+      } catch (err) {
+        if (err.name === 'AbortError') return
         // Fallback to a local explanation if API fails
-        setExplanation(generateLocalExplanation(token, code))
+        if (!cancelled) {
+          setExplanation(generateLocalExplanation(token, code))
+        }
       } finally {
-        setIsStreaming(false)
+        if (!cancelled) {
+          setIsStreaming(false)
+        }
       }
     }
 
     fetchExplanation()
+
+    return () => {
+      cancelled = true
+      abortController.abort()
+    }
   }, [token, code, language])
 
   return (
@@ -321,9 +337,9 @@ function ExplanationPopover({ token, position, onClose, code, language }) {
 
       {/* Content */}
       <div className="p-3 overflow-y-auto max-h-72">
-        <div className="text-sm text-text leading-relaxed">
-          {explanation || (isStreaming ? '' : 'Loading...')}
-          {isStreaming && <span className="inline-block w-1.5 h-4 bg-accent animate-pulse ml-0.5" />}
+        <div className="text-sm text-text explanation-content">
+          <ReactMarkdown>{explanation || ''}</ReactMarkdown>
+          {isStreaming && <span className="inline-block w-1.5 h-4 bg-accent animate-pulse align-middle" />}
         </div>
       </div>
     </div>

@@ -45,7 +45,7 @@ export default function InputBox({ onSend, disabled, value = '', onChange, onHis
   }
 
   return (
-    <form onSubmit={handleSubmit} className="p-4 bg-background">
+    <form onSubmit={handleSubmit} className="flex-shrink-0 p-4 bg-background">
       <div className="max-w-3xl mx-auto">
         {/* Input container - Google AI Mode style */}
         <div className="relative flex items-end gap-2 p-1.5 rounded-[28px] bg-surface border border-border

@@ -186,23 +186,26 @@ class ExplainRequest(BaseModel):
 @app.post("/api/explain")
 async def explain_token(request: ExplainRequest):
     """Generate a detailed explanation for a code token using Claude (streaming)."""
-    prompt = f"""Explain the following code token in the context provided. Be concise but thorough.
+    prompt = f"""You are a code tutor explaining a specific part of code to a learner.
 
 Token: `{request.token}`
 Token Type: {request.tokenType}
 Language: {request.language}
 
-Full Code Context:
+Code Context:
 ```{request.language}
 {request.context}
 ```
 
-Provide a helpful explanation in plain text (no markdown formatting):
-1. What this specific token does in this context
-2. Why it's used here
-3. Any important details a learner should know
+Write a helpful, well-formatted explanation. Use this structure:
 
-Keep the explanation under 100 words. Use simple, clear language. Do not use headers, bullet points, or code blocks."""
+**What it does:** One sentence explaining what this token does here.
+
+**How it works:** 2-3 sentences explaining the mechanics.
+
+**Why it matters:** One sentence on why this is useful or important.
+
+Keep it under 80 words total. Use **bold** for emphasis. Be friendly and clear."""
 
     async def generate():
         try:
@@ -289,4 +292,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -178,10 +178,10 @@ Then refresh this page.`,
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="flex-shrink-0 px-4 py-3 border-b border-border bg-background">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <header className="flex-shrink-0 h-14 px-4 border-b border-border bg-background flex items-center">
+          <div className="max-w-3xl mx-auto w-full flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="Pretty Code" className="w-9 h-9 rounded-lg" />
+              <img src="/logo.png" alt="Pretty Code" className="w-8 h-8 rounded-lg" />
               <h1 className="text-[18px] font-medium text-text">pretty-code</h1>
             </div>
 
