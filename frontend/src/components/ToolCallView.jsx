@@ -12,6 +12,7 @@ import {
   Check,
   FolderOpen,
   Sparkles,
+  HelpCircle,
 } from 'lucide-react'
 import CodeBlock from './CodeBlock'
 
@@ -27,6 +28,7 @@ const TOOL_ICONS = {
   WebSearch: Globe,
   TodoWrite: CheckSquare,
   Task: Sparkles,
+  AskUserQuestion: HelpCircle,
 }
 
 function CopyButton({ text }) {
@@ -74,6 +76,9 @@ function getToolSummary(toolName, input) {
       const inProgress = todos.filter(t => t.status === 'in_progress').length
       const completed = todos.filter(t => t.status === 'completed').length
       return `${completed}/${todos.length} done${inProgress > 0 ? `, ${inProgress} active` : ''}`
+    case 'AskUserQuestion':
+      const qCount = input?.questions?.length || 0
+      return `${qCount} question${qCount !== 1 ? 's' : ''}`
     default:
       return ''
   }
@@ -92,6 +97,7 @@ function getToolLabel(toolName) {
     WebSearch: 'Web',
     TodoWrite: 'Todo',
     Task: '',
+    AskUserQuestion: 'Question',
   }
   return labels[toolName] ?? toolName
 }
@@ -256,6 +262,40 @@ function TaskRenderer({ input }) {
   )
 }
 
+// AskUserQuestion renderer
+function AskUserQuestionRenderer({ input, result }) {
+  const questions = input?.questions || []
+  const hasError = typeof result === 'string' && result.includes('Error')
+
+  return (
+    <div className="space-y-3">
+      {hasError && (
+        <div className="text-xs text-warning bg-warning/10 px-2 py-1 rounded inline-flex items-center gap-1">
+          <span>💭</span>
+          <span>Sub-agent question (answer above to respond)</span>
+        </div>
+      )}
+      {questions.map((q, i) => (
+        <div key={i} className="space-y-1">
+          {q.header && (
+            <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded">
+              {q.header}
+            </span>
+          )}
+          <p className="text-sm font-medium">{q.question}</p>
+          <div className="flex flex-wrap gap-1">
+            {q.options?.map((opt, j) => (
+              <span key={j} className="text-xs bg-surface px-2 py-1 rounded">
+                {opt.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // Generic fallback renderer
 function GenericRenderer({ toolName, input, result }) {
   return (
@@ -330,6 +370,8 @@ export default function ToolCallView({ toolUse, toolResult }) {
         return <TodoRenderer input={input} />
       case 'Task':
         return <TaskRenderer input={input} />
+      case 'AskUserQuestion':
+        return <AskUserQuestionRenderer input={input} result={result} />
       default:
         return <GenericRenderer toolName={toolName} input={input} result={result} />
     }

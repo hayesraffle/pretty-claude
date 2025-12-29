@@ -341,9 +341,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 })
 
             elif msg_type == "set_permission_mode":
-                # Update permission mode for next run
+                # Update permission mode and restart process to apply it
                 new_mode = message_data.get("mode", "default")
                 runner.permission_mode = new_mode
+                await runner.stop()  # Kill current process so next message starts fresh with new mode
                 await websocket.send_json({
                     "type": "system",
                     "subtype": "config",

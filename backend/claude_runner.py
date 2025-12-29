@@ -25,6 +25,7 @@ class ClaudeCodeRunner:
             "--input-format", "stream-json",
             "--output-format", "stream-json",
             "--verbose",
+            "--include-partial-messages",
             "--permission-mode", self.permission_mode,
         ]
 

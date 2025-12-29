@@ -41,10 +41,11 @@ function App() {
   const [todoListCollapsed, setTodoListCollapsed] = useState(false)
   const [todoListVisible, setTodoListVisible] = useState(true)
   const [pendingQuestion, setPendingQuestion] = useState(null) // AskUserQuestion
+  const [subAgentQuestions, setSubAgentQuestions] = useState([]) // Failed sub-agent AskUserQuestion
   const [planFile, setPlanFile] = useState(null) // Plan mode file path
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
   const [workingDir, setWorkingDir] = useState('')
-  const { permissionMode, setPermissionMode } = useSettings()
+  const { permissionMode, setPermissionMode: setPermissionModeSettings } = useSettings()
   const {
     status,
     isStreaming,
@@ -55,7 +56,14 @@ function App() {
     onEvent,
     disconnect,
     connect,
+    setPermissionMode: setPermissionModeWs,
   } = useWebSocket(permissionMode, workingDir)
+
+  // Combined handler that updates both settings and notifies backend
+  const setPermissionMode = useCallback((mode) => {
+    setPermissionModeSettings(mode)
+    setPermissionModeWs(mode)
+  }, [setPermissionModeSettings, setPermissionModeWs])
 
   // Fetch initial working directory from backend
   useEffect(() => {
@@ -79,6 +87,7 @@ function App() {
   } = useConversationStorage()
   const streamingMessageRef = useRef('')
   const autoSaveRef = useRef(null)
+  const pendingAskUserQuestionsRef = useRef(new Map()) // Track AskUserQuestion tool_uses by id
 
   // Handle incoming WebSocket events (new JSON streaming format)
   useEffect(() => {
@@ -108,6 +117,9 @@ function App() {
 
             // Handle AskUserQuestion tool
             if (item.name === 'AskUserQuestion' && item.input?.questions) {
+              // Store in ref to detect failed sub-agent attempts later
+              pendingAskUserQuestionsRef.current.set(item.id, item.input.questions)
+              // Set as pending question for main agent (may get cleared if sub-agent fails)
               setPendingQuestion({
                 id: item.id,
                 questions: item.input.questions,
@@ -172,6 +184,23 @@ function App() {
             setPendingPermissions((prev) =>
               prev.filter((p) => p.id !== item.tool_use_id)
             )
+
+            // Check if this is a failed AskUserQuestion from a sub-agent
+            const resultContent = typeof item.content === 'string' ? item.content : ''
+            const isAskUserError = resultContent.includes('No such tool available: AskUserQuestion')
+            if (isAskUserError && pendingAskUserQuestionsRef.current.has(item.tool_use_id)) {
+              const questions = pendingAskUserQuestionsRef.current.get(item.tool_use_id)
+              // Clear the main pendingQuestion since it failed
+              setPendingQuestion(null)
+              // Add to sub-agent questions for interactive display
+              setSubAgentQuestions(prev => [...prev, {
+                id: item.tool_use_id,
+                questions,
+                answered: false,
+                answers: {}
+              }])
+              pendingAskUserQuestionsRef.current.delete(item.tool_use_id)
+            }
           }
         }
 
@@ -207,6 +236,20 @@ function App() {
   const handleSend = useCallback(async (message, images = []) => {
     addToHistory(message)
 
+    // Prepend context from answered sub-agent questions
+    let contextPrefix = ''
+    const answeredQuestions = subAgentQuestions.filter(q => q.answered)
+    if (answeredQuestions.length > 0) {
+      contextPrefix = answeredQuestions.map(q => {
+        const answerParts = Object.entries(q.answers)
+          .map(([question, answer]) => `Q: "${question}" A: "${answer}"`)
+          .join('; ')
+        return `[Answering sub-agent question: ${answerParts}]`
+      }).join('\n') + '\n\n'
+      // Clear answered questions
+      setSubAgentQuestions(prev => prev.filter(q => !q.answered))
+    }
+
     // Upload images first if any
     let imagePaths = []
     let imageData = []
@@ -232,10 +275,10 @@ function App() {
     }
 
     // Build message with image paths for Claude
-    let fullMessage = message
+    let fullMessage = contextPrefix + message
     if (imagePaths.length > 0) {
       const pathsText = imagePaths.join(' ')
-      fullMessage = message ? `${message}\n\n[Images: ${pathsText}]` : `[Images: ${pathsText}]`
+      fullMessage = fullMessage ? `${fullMessage}\n\n[Images: ${pathsText}]` : `[Images: ${pathsText}]`
     }
 
     // Add to UI with image data for display
@@ -272,7 +315,7 @@ Then refresh this page.`,
         ])
       }, 500)
     }
-  }, [status, sendMessage, addToHistory])
+  }, [status, sendMessage, addToHistory, subAgentQuestions])
 
   const handleClear = () => {
     setMessages([])
@@ -312,6 +355,16 @@ Then refresh this page.`,
     // Send empty response to cancel
     sendQuestionResponse({})
     setPendingQuestion(null)
+  }
+
+  const handleSubAgentAnswer = (questionId, answers) => {
+    setSubAgentQuestions(prev => prev.map(q =>
+      q.id === questionId ? { ...q, answered: true, answers } : q
+    ))
+  }
+
+  const handleSubAgentQuestionDismiss = (questionId) => {
+    setSubAgentQuestions(prev => prev.filter(q => q.id !== questionId))
   }
 
   const handleExitPlanMode = () => {
@@ -537,6 +590,27 @@ Then refresh this page.`,
                 onSubmit={handleQuestionSubmit}
                 onCancel={handleQuestionCancel}
               />
+            </div>
+          </div>
+        )}
+
+        {/* Sub-agent Questions */}
+        {subAgentQuestions.filter(q => !q.answered).length > 0 && (
+          <div className="flex-shrink-0 px-4 py-2 border-t border-border bg-warning/5 backdrop-blur-sm">
+            <div className="max-w-3xl mx-auto space-y-3">
+              {subAgentQuestions.filter(q => !q.answered).map(sq => (
+                <div key={sq.id}>
+                  <div className="text-xs text-warning mb-2 flex items-center gap-1">
+                    <span>💭</span>
+                    <span>A sub-agent has a question for you:</span>
+                  </div>
+                  <QuestionPrompt
+                    questions={sq.questions}
+                    onSubmit={(answers) => handleSubAgentAnswer(sq.id, answers)}
+                    onCancel={() => handleSubAgentQuestionDismiss(sq.id)}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         )}

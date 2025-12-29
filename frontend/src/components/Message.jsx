@@ -4,15 +4,40 @@ import MarkdownRenderer from './MarkdownRenderer'
 import ToolCallView from './ToolCallView'
 import TypingIndicator from './TypingIndicator'
 
-// Compact summary of tool calls
-function ToolCallsSummary({ toolCalls }) {
+// Context for controlling collapse state of nested blocks
+export const CollapseContext = createContext({ allCollapsed: false })
+
+// Collapsible thinking block (hidden by default)
+function ThinkingBlock({ content }) {
   const [isExpanded, setIsExpanded] = useState(false)
 
-  if (!toolCalls || toolCalls.length === 0) return null
+  return (
+    <div className="text-xs text-text-muted my-1">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-1 hover:text-text transition-colors py-0.5"
+      >
+        <span className="opacity-50">
+          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </span>
+        <span className="opacity-70 italic">Thinking...</span>
+      </button>
+      {isExpanded && (
+        <div className="ml-4 mt-1 text-text-muted italic opacity-70 whitespace-pre-wrap text-[13px] leading-relaxed border-l-2 border-text-muted/20 pl-3">
+          {content}
+        </div>
+      )}
+    </div>
+  )
+}
 
-  // Count by type
+// Grouped tool calls (collapsed by default)
+function ToolCallsGroup({ tools }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  // Count by type for summary
   const counts = {}
-  toolCalls.forEach(t => {
+  tools.forEach(t => {
     const name = t.name || 'Unknown'
     counts[name] = (counts[name] || 0) + 1
   })
@@ -34,7 +59,7 @@ function ToolCallsSummary({ toolCalls }) {
       </button>
       {isExpanded && (
         <div className="ml-3 mt-1 space-y-0.5">
-          {toolCalls.map((tool) => (
+          {tools.map((tool) => (
             <ToolCallView
               key={tool.id}
               toolUse={{ name: tool.name, input: tool.input }}
@@ -47,14 +72,11 @@ function ToolCallsSummary({ toolCalls }) {
   )
 }
 
-// Context for controlling collapse state of nested blocks
-export const CollapseContext = createContext({ allCollapsed: false })
-
-// Extract tool calls and their results from events
-function extractToolCalls(events) {
+// Parse events into ordered blocks (text, thinking, grouped tool calls)
+function parseMessageBlocks(events) {
   if (!events || events.length === 0) return []
 
-  const toolCalls = []
+  const rawBlocks = []
   const toolResults = new Map()
 
   // First pass: collect tool results
@@ -76,13 +98,18 @@ function extractToolCalls(events) {
     }
   }
 
-  // Second pass: collect tool uses with their results
+  // Second pass: build ordered blocks
   for (const event of events) {
     if (event.type === 'assistant') {
       const content = event.message?.content || []
       for (const item of content) {
-        if (item.type === 'tool_use') {
-          toolCalls.push({
+        if (item.type === 'text') {
+          rawBlocks.push({ type: 'text', content: item.text })
+        } else if (item.type === 'thinking') {
+          rawBlocks.push({ type: 'thinking', content: item.thinking })
+        } else if (item.type === 'tool_use') {
+          rawBlocks.push({
+            type: 'tool',
             id: item.id,
             name: item.name,
             input: item.input,
@@ -93,7 +120,24 @@ function extractToolCalls(events) {
     }
   }
 
-  return toolCalls
+  // Third pass: group consecutive tool calls
+  const blocks = []
+  for (const block of rawBlocks) {
+    if (block.type === 'tool') {
+      const lastBlock = blocks[blocks.length - 1]
+      if (lastBlock && lastBlock.type === 'tools') {
+        // Add to existing tool group
+        lastBlock.tools.push(block)
+      } else {
+        // Start new tool group
+        blocks.push({ type: 'tools', tools: [block] })
+      }
+    } else {
+      blocks.push(block)
+    }
+  }
+
+  return blocks
 }
 
 function formatTime(date) {
@@ -118,8 +162,8 @@ export default function Message({
   const [editValue, setEditValue] = useState(content)
   const [allCollapsed, setAllCollapsed] = useState(false)
 
-  // Extract tool calls from events
-  const toolCalls = useMemo(() => extractToolCalls(events), [events])
+  // Parse events into ordered blocks (text, thinking, tools)
+  const blocks = useMemo(() => parseMessageBlocks(events), [events])
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content)
@@ -231,25 +275,28 @@ export default function Message({
     )
   }
 
-  // AI message - includes tool calls and text content
+  // AI message - render blocks in chronological order
   return (
     <div className="animate-slide-up space-y-2">
-      {/* Tool calls - compact summary */}
-      {toolCalls.length > 0 && (
-        <ToolCallsSummary toolCalls={toolCalls} />
-      )}
-
-      {/* Text content */}
-      {content && (
-        <CollapseContext.Provider value={{ allCollapsed }}>
-          <div className="prose max-w-none">
-            <MarkdownRenderer content={content} />
-          </div>
-        </CollapseContext.Provider>
-      )}
+      <CollapseContext.Provider value={{ allCollapsed }}>
+        {blocks.map((block, i) => {
+          if (block.type === 'text') {
+            return (
+              <div key={i} className="prose max-w-none">
+                <MarkdownRenderer content={block.content} />
+              </div>
+            )
+          } else if (block.type === 'thinking') {
+            return <ThinkingBlock key={i} content={block.content} />
+          } else if (block.type === 'tools') {
+            return <ToolCallsGroup key={i} tools={block.tools} />
+          }
+          return null
+        })}
+      </CollapseContext.Provider>
 
       {/* Action buttons - shown on hover */}
-      {content && !isStreaming && (
+      {blocks.length > 0 && !isStreaming && (
         <div className="flex items-center gap-1 mt-3 opacity-0 hover:opacity-100
                         focus-within:opacity-100 transition-opacity">
           {isLast && onRegenerate && (
