@@ -46,8 +46,8 @@
   --color-selection-code: #a8d4ff;
 
   /* Pretty code selection - light mode */
-  --color-pretty-selection: #d8b4f8;
-  --color-pretty-selection-button: #a855f7;
+  --color-pretty-selection: #dee3ff;
+  --color-pretty-selection-button: #6366f1;
 }
 
 * {
@@ -199,8 +199,8 @@ textarea:focus {
   --color-selection-code: #3b82f6;
 
   /* Pretty code selection - dark mode */
-  --color-pretty-selection: #4a3f6b;
-  --color-pretty-selection-button: #7c3aed;
+  --color-pretty-selection: #343b4c;
+  --color-pretty-selection-button: #6366f1;
 }
 
 /* Primary CTA button - Google style */
