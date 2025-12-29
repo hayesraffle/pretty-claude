@@ -350,8 +350,9 @@ Then refresh this page.`,
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Header */}
-        <header className="flex-shrink-0 h-14 px-4 border-b border-border bg-background flex items-center">
-          <div className="max-w-3xl mx-auto w-full flex items-center justify-between">
+        <header className="flex-shrink-0 h-14 px-4 border-b border-border bg-background flex items-center justify-between">
+          <div className="flex-1 flex justify-center">
+            <div className="max-w-3xl w-full flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img src="/logo.png" alt="Pretty Code" className="w-8 h-8 rounded-lg" />
               <h1 className="text-[18px] font-medium text-text">pretty-code</h1>
@@ -441,14 +442,6 @@ Then refresh this page.`,
                 {isDark ? <Sun size={18} /> : <Moon size={18} />}
               </button>
 
-              <button
-                onClick={() => setSettingsPanelOpen(true)}
-                className="btn-icon"
-                title="Settings"
-              >
-                <Settings size={18} />
-              </button>
-
               <div className="flex items-center gap-2 text-[13px]">
                 {status === 'connected' ? (
                   <span className="flex items-center gap-1.5 text-success">
@@ -468,7 +461,17 @@ Then refresh this page.`,
                 )}
               </div>
             </div>
+            </div>
           </div>
+
+          {/* Pinned Settings Gear */}
+          <button
+            onClick={() => setSettingsPanelOpen(true)}
+            className="flex-shrink-0 p-2 rounded-lg hover:bg-text/5 text-text-muted hover:text-text transition-colors"
+            title="Settings"
+          >
+            <Settings size={18} />
+          </button>
         </header>
 
         {/* Plan Mode Bar */}
