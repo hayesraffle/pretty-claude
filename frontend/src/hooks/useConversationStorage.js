@@ -9,16 +9,31 @@ export function useConversationStorage() {
   const [isLoading, setIsLoading] = useState(true)
   const conversationCacheRef = useRef(new Map()) // Cache full conversation data
 
-  // Load conversations list from backend on mount
+  // Get conversation ID from URL on mount
+  const getIdFromUrl = () => {
+    const match = window.location.pathname.match(/^\/c\/([^/]+)/)
+    return match ? match[1] : null
+  }
+
+  // Load conversations list and check URL for conversation ID
   useEffect(() => {
     loadConversationsList()
-
-    // Also restore current ID from localStorage
-    const current = localStorage.getItem(CURRENT_KEY)
-    if (current) {
-      setCurrentId(current)
+    const urlId = getIdFromUrl()
+    if (urlId) {
+      setCurrentId(urlId)
     }
+    localStorage.removeItem(CURRENT_KEY)
   }, [])
+
+  // Sync URL with currentId
+  useEffect(() => {
+    const urlId = getIdFromUrl()
+    if (currentId && currentId !== urlId) {
+      window.history.pushState({}, '', `/c/${currentId}`)
+    } else if (!currentId && urlId) {
+      window.history.pushState({}, '', '/')
+    }
+  }, [currentId])
 
   // Save current ID to localStorage
   useEffect(() => {
@@ -44,8 +59,9 @@ export function useConversationStorage() {
     }
   }
 
-  const saveConversation = useCallback(async (messages, title = null) => {
-    const id = currentId || Date.now().toString()
+  const saveConversation = useCallback(async (messages, title = null, options = {}) => {
+    const { explicitId, updateCurrentId = true } = options
+    const id = explicitId || currentId || Date.now().toString()
     const autoTitle = title || generateTitle(messages)
     const updatedAt = new Date().toISOString()
 
@@ -95,7 +111,9 @@ export function useConversationStorage() {
       console.error('Failed to save conversation:', e)
     }
 
-    setCurrentId(id)
+    if (updateCurrentId) {
+      setCurrentId(id)
+    }
     return id
   }, [currentId])
 

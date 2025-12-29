@@ -77,6 +77,7 @@ function App() {
       })
       .catch(() => {})
   }, [])
+
   const { isDark, toggle: toggleDarkMode } = useDarkMode()
   const { globalMode, toggleGlobalMode } = useCodeDisplayMode()
   const { addToHistory, navigateHistory } = useCommandHistory()
@@ -93,6 +94,67 @@ function App() {
   const pendingAskUserQuestionsRef = useRef(new Map()) // Track AskUserQuestion tool_uses by id
   const autoApprovedPermissionsRef = useRef(new Set()) // Track auto-approved permissions to prevent duplicates
   const hasSubAgentQuestionsRef = useRef(false) // Track if we just added sub-agent questions (for sync check)
+
+  // Save conversation before page unload
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (messagesRef.current.length > 0) {
+        // Use sendBeacon for reliable save on unload
+        const id = currentId || Date.now().toString()
+        const conversation = {
+          id,
+          title: messagesRef.current.find(m => m.role === 'user')?.content?.slice(0, 50) || 'New conversation',
+          messages: messagesRef.current,
+          updatedAt: new Date().toISOString(),
+        }
+        const blob = new Blob([JSON.stringify(conversation)], { type: 'application/json' })
+        navigator.sendBeacon('http://localhost:8000/api/conversations', blob)
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [currentId])
+
+  // Load conversation from URL on mount
+  const initialLoadRef = useRef(false)
+  useEffect(() => {
+    if (currentId && !initialLoadRef.current && messages.length === 0) {
+      initialLoadRef.current = true
+      loadConversation(currentId).then(loaded => {
+        if (loaded) {
+          setMessages(loaded.map(m => ({
+            ...m,
+            timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+          })))
+        }
+      })
+    }
+  }, [currentId, messages.length, loadConversation])
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const match = window.location.pathname.match(/^\/c\/([^/]+)/)
+      const urlId = match ? match[1] : null
+      if (urlId && urlId !== currentId) {
+        loadConversation(urlId).then(loaded => {
+          if (loaded) {
+            setMessages(loaded.map(m => ({
+              ...m,
+              timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+            })))
+          }
+        })
+      } else if (!urlId) {
+        setMessages([])
+        newConversation()
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [currentId, loadConversation, newConversation])
 
   // Helper to parse structured questions from JSON blocks in text
   // Looks for ```json:questions blocks that Claude outputs per our system prompt
@@ -500,12 +562,18 @@ function App() {
     const fullMessage = contextPrefix + message
 
     // Add to UI with image data for display
-    setMessages((prev) => [...prev, {
+    const newMessage = {
       role: 'user',
       content: message,
       images: images,
       timestamp: new Date()
-    }])
+    }
+    setMessages((prev) => {
+      const updated = [...prev, newMessage]
+      // Save immediately after user submits
+      saveConversation(updated)
+      return updated
+    })
 
     if (status === 'connected') {
       // Send images directly as base64 (not as file paths)
@@ -708,14 +776,15 @@ Then refresh this page.`,
   }
 
   const handleNewConversation = () => {
-    // Save current if has messages
-    if (messages.length > 0) {
-      saveConversation(messages)
+    // Save current conversation before switching (don't update currentId since we're leaving)
+    if (messages.length > 0 && currentId) {
+      saveConversation(messages, null, { updateCurrentId: false })
     }
+    // Clear state and start fresh
+    newConversation()
     setMessages([])
     setSubAgentQuestions([])
     hasSubAgentQuestionsRef.current = false
-    newConversation()
   }
 
   return (

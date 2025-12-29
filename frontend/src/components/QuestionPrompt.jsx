@@ -1,218 +1,358 @@
-import { useState } from 'react'
-import { HelpCircle, Check, X } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Check, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react'
 
-export default function QuestionPrompt({ questions, onSubmit, onCancel }) {
+export default function QuestionPrompt({ questions, onSubmit }) {
+  const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState({})
+  const [animationPhase, setAnimationPhase] = useState('idle') // idle, flash, exit, enter
+  const [direction, setDirection] = useState(1) // 1 = forward, -1 = back
+  const [focusedOption, setFocusedOption] = useState(0) // keyboard navigation within options
 
-  const handleOptionToggle = (questionIndex, optionLabel, isMultiSelect) => {
-    setAnswers((prev) => {
-      const key = `question_${questionIndex}`
-      if (isMultiSelect) {
-        const current = prev[key] || []
-        if (current.includes(optionLabel)) {
-          return { ...prev, [key]: current.filter((l) => l !== optionLabel) }
-        } else {
-          return { ...prev, [key]: [...current, optionLabel] }
-        }
-      } else {
-        return { ...prev, [key]: optionLabel }
-      }
-    })
-  }
+  const currentQuestion = questions[currentIndex]
+  const isLastQuestion = currentIndex === questions.length - 1
+  const selectedAnswer = answers[`question_${currentIndex}`]
+  const otherValue = answers[`question_${currentIndex}_other`] || ''
+  const hasAnswer = selectedAnswer || otherValue
 
-  const handleOtherInput = (questionIndex, value) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [`question_${questionIndex}_other`]: value,
-    }))
-  }
-
-  const handleSubmit = () => {
-    const response = {}
-    questions.forEach((q, i) => {
-      const key = `question_${i}`
-      const otherKey = `${key}_other`
-      if (answers[otherKey]) {
-        response[q.header || key] = answers[otherKey]
-      } else if (answers[key]) {
-        response[q.header || key] = answers[key]
-      }
-    })
-    onSubmit?.(response)
-  }
-
-  const answeredCount = questions.filter((q, i) => {
+  // Check if all questions are answered
+  const isComplete = questions.every((q, i) => {
     const key = `question_${i}`
     const otherKey = `${key}_other`
     return answers[key] || answers[otherKey]
-  }).length
+  })
 
-  const isComplete = answeredCount === questions.length
+  const animateTransition = useCallback((newIndex, dir, withFlash = false) => {
+    setDirection(dir)
+    if (withFlash) {
+      // Flash → pause → exit → enter
+      setAnimationPhase('flash')
+      setTimeout(() => {
+        setAnimationPhase('exit')
+        setTimeout(() => {
+          setCurrentIndex(newIndex)
+          setAnimationPhase('enter')
+          setTimeout(() => setAnimationPhase('idle'), 200)
+        }, 150)
+      }, 300) // Pause after flash
+    } else {
+      // Just exit → enter
+      setAnimationPhase('exit')
+      setTimeout(() => {
+        setCurrentIndex(newIndex)
+        setAnimationPhase('enter')
+        setTimeout(() => setAnimationPhase('idle'), 200)
+      }, 150)
+    }
+  }, [])
+
+  const goBack = useCallback(() => {
+    if (currentIndex > 0 && animationPhase === 'idle') {
+      animateTransition(currentIndex - 1, -1)
+    }
+  }, [currentIndex, animationPhase, animateTransition])
+
+  const advance = useCallback((withFlash = false) => {
+    if (animationPhase !== 'idle') return
+
+    if (isLastQuestion) {
+      // Submit all answers
+      const response = {}
+      questions.forEach((q, i) => {
+        const key = `question_${i}`
+        const otherKey = `${key}_other`
+        if (answers[otherKey]) {
+          response[q.header || q.question] = answers[otherKey]
+        } else if (answers[key]) {
+          const val = answers[key]
+          response[q.header || q.question] = Array.isArray(val) ? val.join(', ') : val
+        }
+      })
+      onSubmit?.(response)
+    } else {
+      animateTransition(currentIndex + 1, 1, withFlash)
+    }
+  }, [isLastQuestion, questions, answers, onSubmit, animationPhase, currentIndex, animateTransition])
+
+  const handleOptionClick = (optionLabel) => {
+    if (animationPhase !== 'idle') return
+
+    const key = `question_${currentIndex}`
+
+    if (currentQuestion.multiSelect) {
+      // Toggle selection for multi-select
+      setAnswers(prev => {
+        const current = prev[key] || []
+        if (current.includes(optionLabel)) {
+          return { ...prev, [key]: current.filter(l => l !== optionLabel) }
+        } else {
+          return { ...prev, [key]: [...current, optionLabel] }
+        }
+      })
+    } else {
+      // Single select - set and auto-advance with flash
+      setAnswers(prev => ({ ...prev, [key]: optionLabel, [`${key}_other`]: '' }))
+      // Auto-advance with flash animation
+      setTimeout(() => advance(true), 50)
+    }
+  }
+
+  const handleOtherChange = (value) => {
+    const key = `question_${currentIndex}`
+    setAnswers(prev => ({
+      ...prev,
+      [`${key}_other`]: value,
+      [key]: undefined // Clear selected option when typing "other"
+    }))
+  }
+
+  const handleOtherSubmit = (e) => {
+    e.preventDefault()
+    if (otherValue.trim()) {
+      advance()
+    }
+  }
+
+  // Reset focused option when question changes
+  useEffect(() => {
+    setFocusedOption(0)
+  }, [currentIndex])
+
+  // Total options including "Other"
+  const totalOptions = (currentQuestion.options?.length || 0) + 1
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't capture if typing in input or animating
+      if (e.target.tagName === 'INPUT' || animationPhase !== 'idle') return
+
+      // Number keys 1-9 to select options
+      if (e.key >= '1' && e.key <= '9') {
+        const optionIndex = parseInt(e.key) - 1
+        if (currentQuestion.options && optionIndex < currentQuestion.options.length) {
+          handleOptionClick(currentQuestion.options[optionIndex].label)
+        }
+      }
+
+      // Up/Down to navigate options
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setFocusedOption(prev => (prev - 1 + totalOptions) % totalOptions)
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setFocusedOption(prev => (prev + 1) % totalOptions)
+      }
+
+      // Enter to select focused option or advance
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        const optionsCount = currentQuestion.options?.length || 0
+        if (focusedOption < optionsCount) {
+          // Select the focused option
+          handleOptionClick(currentQuestion.options[focusedOption].label)
+        } else if (currentQuestion.multiSelect && hasAnswer) {
+          // "Other" is focused or multi-select with answers - advance
+          advance()
+        }
+      }
+
+      // Left/Right to navigate between questions
+      if (e.key === 'ArrowLeft' && currentIndex > 0) {
+        goBack()
+      }
+      if (e.key === 'ArrowRight' && hasAnswer) {
+        advance()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [currentQuestion, hasAnswer, advance, goBack, currentIndex, animationPhase, focusedOption, totalOptions])
+
+  const isOptionSelected = (label) => {
+    if (currentQuestion.multiSelect) {
+      return (selectedAnswer || []).includes(label)
+    }
+    return selectedAnswer === label
+  }
 
   return (
-    <div className="border border-accent/30 rounded-xl bg-accent/5 animate-fade-in overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-        <div className="flex items-center gap-2">
-          <HelpCircle size={18} className="text-accent" />
-          <span className="font-medium text-text">Claude needs your input</span>
+    <div className="py-4 animate-fade-in">
+      {/* Progress dots - clickable to navigate */}
+      {questions.length > 1 && (
+        <div className="flex items-center justify-center gap-1.5 mb-4">
+          {questions.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                if (i < currentIndex && animationPhase === 'idle') {
+                  animateTransition(i, -1)
+                }
+              }}
+              disabled={i >= currentIndex || animationPhase !== 'idle'}
+              className={`h-1 rounded-full transition-all duration-300 ${
+                i === currentIndex
+                  ? 'w-6 bg-accent'
+                  : i < currentIndex
+                  ? 'w-1.5 bg-accent/50 hover:bg-accent/70 cursor-pointer'
+                  : 'w-1.5 bg-border cursor-default'
+              }`}
+            />
+          ))}
         </div>
-        <span className="text-xs text-text-muted">
-          {answeredCount} of {questions.length} answered
-        </span>
-      </div>
+      )}
 
-      {/* Scrollable questions area */}
-      <div className="max-h-[50vh] overflow-y-auto p-4 space-y-4">
-        {questions.map((question, qIndex) => {
-          const selectedAnswer = answers[`question_${qIndex}`]
-          const otherValue = answers[`question_${qIndex}_other`] || ''
+      {/* Question card */}
+      <div
+        className={`transition-all ${
+          animationPhase === 'flash'
+            ? 'duration-100 scale-[1.01]'
+            : animationPhase === 'exit'
+            ? `duration-150 opacity-0 ${direction > 0 ? '-translate-x-8' : 'translate-x-8'}`
+            : animationPhase === 'enter'
+            ? `duration-200 opacity-100 translate-x-0`
+            : 'duration-200 opacity-100 translate-x-0'
+        }`}
+      >
+        {/* Question header badge */}
+        {currentQuestion.header && (
+          <div className="inline-block text-[11px] font-medium text-accent uppercase tracking-wider mb-2">
+            {currentQuestion.header}
+          </div>
+        )}
 
-          return (
-            <div
-              key={qIndex}
-              className="border border-border rounded-lg p-4 bg-surface/50"
-            >
-              {/* Question header */}
-              {question.header && (
-                <div className="text-xs font-medium text-accent uppercase tracking-wide mb-1">
-                  {question.header}
-                </div>
-              )}
+        {/* Question text */}
+        <p className="text-[15px] text-text mb-4 leading-relaxed">
+          {currentQuestion.question}
+          {currentQuestion.multiSelect && (
+            <span className="text-text-muted text-sm ml-2">(select multiple)</span>
+          )}
+        </p>
 
-              {/* Question text */}
-              <p className="text-sm text-text mb-3">{question.question}</p>
-
-              {/* Options */}
-              <div className="space-y-2">
-                {question.options?.map((option, oIndex) => {
-                  const isSelected = question.multiSelect
-                    ? (selectedAnswer || []).includes(option.label)
-                    : selectedAnswer === option.label
-
-                  return (
-                    <div
-                      key={oIndex}
-                      onClick={() =>
-                        handleOptionToggle(qIndex, option.label, question.multiSelect)
-                      }
-                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                        isSelected
-                          ? 'border-accent bg-accent/10'
-                          : 'border-border hover:border-accent/50 hover:bg-accent/5'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {/* Radio or Checkbox indicator */}
-                        {question.multiSelect ? (
-                          <div
-                            className={`w-4 h-4 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
-                              isSelected
-                                ? 'bg-accent border-accent'
-                                : 'border-border'
-                            }`}
-                          >
-                            {isSelected && <Check size={10} className="text-white" />}
-                          </div>
-                        ) : (
-                          <div
-                            className={`w-4 h-4 rounded-full flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
-                              isSelected
-                                ? 'border-accent'
-                                : 'border-border'
-                            }`}
-                          >
-                            {isSelected && (
-                              <div className="w-2 h-2 rounded-full bg-accent" />
-                            )}
-                          </div>
-                        )}
-
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-sm text-text">
-                            {option.label}
-                          </span>
-                          {option.description && (
-                            <p className="text-xs text-text-muted mt-0.5">
-                              {option.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-
-                {/* Other option */}
-                <div
-                  className={`p-3 rounded-lg border transition-colors ${
-                    otherValue
-                      ? 'border-accent bg-accent/10'
-                      : 'border-border'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {question.multiSelect ? (
-                      <div
-                        className={`w-4 h-4 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
-                          otherValue
-                            ? 'bg-accent border-accent'
-                            : 'border-border'
-                        }`}
-                      >
-                        {otherValue && <Check size={10} className="text-white" />}
-                      </div>
-                    ) : (
-                      <div
-                        className={`w-4 h-4 rounded-full flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
-                          otherValue
-                            ? 'border-accent'
-                            : 'border-border'
-                        }`}
-                      >
-                        {otherValue && (
-                          <div className="w-2 h-2 rounded-full bg-accent" />
-                        )}
-                      </div>
+        {/* Options grid */}
+        <div className="space-y-1.5">
+          {currentQuestion.options?.map((option, i) => {
+            const selected = isOptionSelected(option.label)
+            const focused = focusedOption === i
+            return (
+              <button
+                key={i}
+                onClick={() => handleOptionClick(option.label)}
+                onMouseEnter={() => setFocusedOption(i)}
+                className={`w-full text-left px-3 py-2.5 rounded-lg transition-all duration-150
+                           flex items-center justify-between group
+                           ${selected
+                             ? 'bg-accent text-white'
+                             : focused
+                             ? 'bg-accent/10 ring-1 ring-accent/50'
+                             : 'bg-surface hover:bg-accent/10'
+                           }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  {/* Keyboard hint */}
+                  <span className={`text-xs font-mono w-4 flex-shrink-0 ${
+                    selected ? 'text-white/70' : 'text-text-muted'
+                  }`}>
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <span className={`text-sm ${selected ? 'font-medium' : ''}`}>
+                      {option.label}
+                    </span>
+                    {option.description && (
+                      <span className={`text-xs ml-2 ${
+                        selected ? 'text-white/70' : 'text-text-muted'
+                      }`}>
+                        — {option.description}
+                      </span>
                     )}
-                    <input
-                      type="text"
-                      placeholder="Other..."
-                      value={otherValue}
-                      onChange={(e) => handleOtherInput(qIndex, e.target.value)}
-                      className="flex-1 bg-transparent text-sm text-text placeholder:text-text-muted focus:outline-none"
-                    />
                   </div>
                 </div>
-              </div>
-            </div>
-          )
-        })}
+                {selected && (
+                  <Check size={16} className="flex-shrink-0" />
+                )}
+              </button>
+            )
+          })}
+
+          {/* Other option - inline input */}
+          <div
+            onMouseEnter={() => setFocusedOption(currentQuestion.options?.length || 0)}
+            className={`rounded-lg transition-all duration-150 ${
+              otherValue
+                ? 'bg-accent'
+                : focusedOption === (currentQuestion.options?.length || 0)
+                ? 'bg-accent/10 ring-1 ring-accent/50'
+                : 'bg-surface'
+            }`}
+          >
+            <form onSubmit={handleOtherSubmit} className="flex items-center">
+              <span className={`text-xs font-mono w-4 ml-3 flex-shrink-0 ${
+                otherValue ? 'text-white/70' : 'text-text-muted'
+              }`}>
+                {(currentQuestion.options?.length || 0) + 1}
+              </span>
+              <input
+                type="text"
+                placeholder="Other..."
+                value={otherValue}
+                onChange={(e) => handleOtherChange(e.target.value)}
+                onFocus={() => setFocusedOption(currentQuestion.options?.length || 0)}
+                className={`flex-1 bg-transparent text-sm py-2.5 px-3 focus:outline-none
+                           ${otherValue ? 'text-white placeholder:text-white/50' : 'text-text placeholder:text-text-muted'}`}
+              />
+              {otherValue && (
+                <button
+                  type="submit"
+                  className="px-3 py-2 text-white/70 hover:text-white"
+                >
+                  <CornerDownLeft size={14} />
+                </button>
+              )}
+            </form>
+          </div>
+        </div>
+
+        {/* Ok button for multi-select */}
+        {currentQuestion.multiSelect && hasAnswer && (
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={advance}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg
+                       bg-accent text-white hover:bg-accent/90
+                       text-sm font-medium transition-colors"
+            >
+              {isLastQuestion ? 'Submit' : 'Ok'}
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border/50 bg-surface/30">
-        {onCancel && (
-          <button
-            onClick={onCancel}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg
-                       border border-border hover:bg-text/5
-                       text-sm transition-colors"
-          >
-            <X size={14} />
-            Cancel
-          </button>
-        )}
+      {/* Navigation: < 1 of 3 > */}
+      <div className="mt-4 flex items-center justify-center gap-1 text-xs text-text-muted">
         <button
-          onClick={handleSubmit}
-          disabled={!isComplete}
-          className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg
-                     bg-accent text-white hover:bg-accent/90
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     text-sm font-medium transition-colors"
+          onClick={goBack}
+          disabled={currentIndex === 0 || animationPhase !== 'idle'}
+          className={`p-1 rounded transition-colors ${
+            currentIndex > 0
+              ? 'hover:text-text hover:bg-surface cursor-pointer'
+              : 'opacity-30 cursor-default'
+          }`}
         >
-          <Check size={14} />
-          Submit
+          <ChevronLeft size={14} />
+        </button>
+        <span className="tabular-nums px-1">{currentIndex + 1} of {questions.length}</span>
+        <button
+          onClick={() => hasAnswer && advance()}
+          disabled={!hasAnswer || animationPhase !== 'idle'}
+          className={`p-1 rounded transition-colors ${
+            hasAnswer
+              ? 'hover:text-text hover:bg-surface cursor-pointer'
+              : 'opacity-30 cursor-default'
+          }`}
+        >
+          <ChevronRight size={14} />
         </button>
       </div>
     </div>
