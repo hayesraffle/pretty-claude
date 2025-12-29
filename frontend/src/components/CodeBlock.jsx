@@ -48,40 +48,44 @@ export default function CodeBlock({ code, language = 'javascript', defaultExpand
   const isPretty = activeMode === 'pretty'
   const isOverridden = localMode !== null
 
+  // Set to true to show header with language, mode toggle, collapse, copy
+  const showHeader = false
+
   return (
     <div className="relative my-3 rounded-xl overflow-hidden bg-code-bg code-mode-transition">
-      {/* Header - commented out for now
-      <div className="flex items-center justify-between px-3 py-2">
-        <span className="text-[12px] leading-[16px] font-medium text-text-muted">
-          {language}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={toggleLocalMode}
-            className={`btn-icon w-7 h-7 ${isOverridden ? 'text-accent' : ''}`}
-            title={isPretty ? 'Switch to classic monospace' : 'Switch to pretty mode'}
-          >
-            {isPretty ? <Code size={14} /> : <Type size={14} />}
-          </button>
-          {canCollapse && (
+      {/* Header */}
+      {showHeader && (
+        <div className="flex items-center justify-between px-3 py-2">
+          <span className="text-[12px] leading-[16px] font-medium text-text-muted">
+            {language}
+          </span>
+          <div className="flex items-center gap-1">
             <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="btn-icon w-7 h-7"
-              title={isCollapsed ? 'Expand' : 'Collapse'}
+              onClick={toggleLocalMode}
+              className={`btn-icon w-7 h-7 ${isOverridden ? 'text-accent' : ''}`}
+              title={isPretty ? 'Switch to classic monospace' : 'Switch to pretty mode'}
             >
-              {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+              {isPretty ? <Code size={14} /> : <Type size={14} />}
             </button>
-          )}
-          <button
-            onClick={handleCopy}
-            className="btn-icon w-7 h-7"
-            title="Copy code"
-          >
-            {copied ? <Check size={14} /> : <Copy size={14} />}
-          </button>
+            {canCollapse && (
+              <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="btn-icon w-7 h-7"
+                title={isCollapsed ? 'Expand' : 'Collapse'}
+              >
+                {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+              </button>
+            )}
+            <button
+              onClick={handleCopy}
+              className="btn-icon w-7 h-7"
+              title="Copy code"
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </button>
+          </div>
         </div>
-      </div>
-      */}
+      )}
 
       {/* Render appropriate code view */}
       {isPretty ? (
