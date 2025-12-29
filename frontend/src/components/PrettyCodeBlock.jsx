@@ -883,11 +883,20 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
                 const lineBreadcrumbs = getBreadcrumbsForLine(lineIndex)
 
                 // Check if this line is part of a selection being explained
-                const isSelectionLine = selectedToken?.types?.includes('selection') &&
+                const isSelectedSelectionLine = selectedToken?.types?.includes('selection') &&
                   selectedToken.startLineIndex != null &&
                   selectedToken.endLineIndex != null &&
                   lineIndex >= selectedToken.startLineIndex &&
                   lineIndex <= selectedToken.endLineIndex
+
+                // Check if this line is part of a hovered breadcrumb selection
+                const isHoveredSelectionLine = hoveredBreadcrumb?.token?.types?.includes('selection') &&
+                  hoveredBreadcrumb.token.startLineIndex != null &&
+                  hoveredBreadcrumb.token.endLineIndex != null &&
+                  lineIndex >= hoveredBreadcrumb.token.startLineIndex &&
+                  lineIndex <= hoveredBreadcrumb.token.endLineIndex
+
+                const isSelectionLine = isSelectedSelectionLine || isHoveredSelectionLine
 
                 return (
                   <div
