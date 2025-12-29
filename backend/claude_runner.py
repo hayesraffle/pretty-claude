@@ -43,10 +43,14 @@ class ClaudeCodeRunner:
         except Exception:
             return False
 
-    async def run(self, message: str) -> AsyncGenerator[dict, None]:
+    async def run(self, message: str, images: list = None) -> AsyncGenerator[dict, None]:
         """
         Send a message to Claude Code and yield JSON events.
         Keeps the process alive for subsequent messages.
+
+        Args:
+            message: The text message to send
+            images: Optional list of image dicts with {data: base64, media_type: str}
         """
         try:
             if not await self._ensure_process():
@@ -57,12 +61,29 @@ class ClaudeCodeRunner:
                 }
                 return
 
+            # Build content array (text + optional images)
+            content = []
+            if message:
+                content.append({"type": "text", "text": message})
+
+            # Add images as base64 content blocks
+            if images:
+                for img in images:
+                    content.append({
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": img.get("media_type", "image/png"),
+                            "data": img.get("data", "")
+                        }
+                    })
+
             # Send the user message as JSON
             user_message = {
                 "type": "user",
                 "message": {
                     "role": "user",
-                    "content": message
+                    "content": content if len(content) > 1 or images else message
                 }
             }
             await self._write_json(user_message)

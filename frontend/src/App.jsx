@@ -295,47 +295,19 @@ function App() {
       setSubAgentQuestions(prev => prev.filter(q => !q.answered))
     }
 
-    // Upload images first if any
-    let imagePaths = []
-    let imageData = []
-    if (images.length > 0) {
-      for (const img of images) {
-        try {
-          const res = await fetch('http://localhost:8000/api/images/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: img.name,
-              type: img.type,
-              data: img.data,
-            }),
-          })
-          const data = await res.json()
-          imagePaths.push(data.path)
-          imageData.push({ ...img, path: data.path, filename: data.filename })
-        } catch (e) {
-          console.error('Failed to upload image:', e)
-        }
-      }
-    }
-
-    // Build message with image paths for Claude
-    let fullMessage = contextPrefix + message
-    if (imagePaths.length > 0) {
-      const pathsText = imagePaths.join(' ')
-      fullMessage = fullMessage ? `${fullMessage}\n\n[Images: ${pathsText}]` : `[Images: ${pathsText}]`
-    }
+    const fullMessage = contextPrefix + message
 
     // Add to UI with image data for display
     setMessages((prev) => [...prev, {
       role: 'user',
       content: message,
-      images: imageData,
+      images: images,
       timestamp: new Date()
     }])
 
     if (status === 'connected') {
-      sendMessage(fullMessage)
+      // Send images directly as base64 (not as file paths)
+      sendMessage(fullMessage, images)
     } else {
       setTimeout(() => {
         setMessages((prev) => [

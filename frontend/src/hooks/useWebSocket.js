@@ -94,9 +94,9 @@ export function useWebSocket(permissionMode = 'default', workingDir = '') {
     }
   }, [])
 
-  const sendMessage = useCallback((content) => {
+  const sendMessage = useCallback((content, images = []) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'message', content }))
+      wsRef.current.send(JSON.stringify({ type: 'message', content, images }))
       return true
     }
     return false

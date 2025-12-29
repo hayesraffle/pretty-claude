@@ -400,11 +400,11 @@ async def websocket_endpoint(websocket: WebSocket):
     streaming_task = None
     stop_requested = False
 
-    async def stream_claude_output(user_message: str):
+    async def stream_claude_output(user_message: str, images: list = None):
         """Stream Claude output to WebSocket."""
         nonlocal stop_requested
         try:
-            async for event in runner.run(user_message):
+            async for event in runner.run(user_message, images=images):
                 if stop_requested:
                     break
                 await websocket.send_json(event)
@@ -425,10 +425,23 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if msg_type == "message":
                 user_message = message_data.get("content", "")
+                # Extract images if provided (base64 data URLs)
+                raw_images = message_data.get("images", [])
+                images = []
+                for img in raw_images:
+                    # Parse data URL: data:image/png;base64,iVBORw...
+                    data_url = img.get("data", "")
+                    if data_url.startswith("data:"):
+                        header, b64_data = data_url.split(",", 1)
+                        media_type = header.split(":")[1].split(";")[0]
+                        images.append({
+                            "data": b64_data,
+                            "media_type": media_type
+                        })
                 stop_requested = False
 
                 # Start streaming in background task so we can still receive stop messages
-                streaming_task = asyncio.create_task(stream_claude_output(user_message))
+                streaming_task = asyncio.create_task(stream_claude_output(user_message, images if images else None))
 
                 # Wait for streaming to complete, but also listen for other messages
                 while not streaming_task.done():
