@@ -92,6 +92,55 @@ function App() {
   const pendingAskUserQuestionsRef = useRef(new Map()) // Track AskUserQuestion tool_uses by id
   const autoApprovedPermissionsRef = useRef(new Set()) // Track auto-approved permissions to prevent duplicates
 
+  // Helper to parse questions from markdown text
+  const parseQuestionsFromText = useCallback((text) => {
+    if (!text) return null
+
+    // Look for a Questions: section with numbered items
+    const questionsMatch = text.match(/\*\*Questions?:?\*\*|^Questions?:?$/mi)
+    if (!questionsMatch) return null
+
+    const questionsStart = text.indexOf(questionsMatch[0])
+    const questionsSection = text.slice(questionsStart)
+
+    // Parse numbered questions: 1. **Header**: Question text
+    const questionRegex = /^\d+\.\s+\*\*([^*]+)\*\*:?\s*(.+?)(?=^\d+\.|$)/gms
+    const questions = []
+    let match
+
+    while ((match = questionRegex.exec(questionsSection)) !== null) {
+      const header = match[1].trim()
+      const body = match[2].trim()
+
+      // Parse options from bullet points: - **Option A:** description
+      const optionRegex = /[-•]\s+\*\*([^*]+)\*\*:?\s*(.+)/g
+      const options = []
+      let optMatch
+
+      while ((optMatch = optionRegex.exec(body)) !== null) {
+        options.push({
+          label: optMatch[1].trim(),
+          description: optMatch[2].trim()
+        })
+      }
+
+      // Extract the question text (first line before options)
+      const questionText = body.split(/\n\s*[-•]/)[0].trim()
+
+      questions.push({
+        header: header.slice(0, 12), // Max 12 chars for header
+        question: questionText || header,
+        options: options.length >= 2 ? options.slice(0, 4) : [
+          { label: 'Yes', description: '' },
+          { label: 'No', description: '' }
+        ],
+        multiSelect: false
+      })
+    }
+
+    return questions.length > 0 ? questions : null
+  }, [])
+
   // Handle incoming WebSocket events (new JSON streaming format)
   useEffect(() => {
     onEvent((event) => {
@@ -119,14 +168,20 @@ function App() {
             }
 
             // Handle AskUserQuestion tool
-            if (item.name === 'AskUserQuestion' && item.input?.questions) {
+            // Questions can be in input.questions or input directly
+            const questions = item.input?.questions || (Array.isArray(item.input) ? item.input : null)
+            if (item.name === 'AskUserQuestion' && questions && questions.length > 0) {
               // Store in ref to detect failed sub-agent attempts later
-              pendingAskUserQuestionsRef.current.set(item.id, item.input.questions)
+              pendingAskUserQuestionsRef.current.set(item.id, questions)
               // Set as pending question for main agent (may get cleared if sub-agent fails)
               setPendingQuestion({
                 id: item.id,
-                questions: item.input.questions,
+                questions: questions,
               })
+            } else if (item.name === 'AskUserQuestion') {
+              // Store even if questions are empty, so we can track sub-agent failures
+              console.log('AskUserQuestion with input:', item.input)
+              pendingAskUserQuestionsRef.current.set(item.id, [])
             }
 
             // Handle EnterPlanMode - set plan file path
@@ -232,7 +287,25 @@ function App() {
           return updated
         })
       } else if (event.type === 'result') {
-        // Session complete - auto-save
+        // Session complete - check for questions in text if no pending question
+        if (!pendingQuestion) {
+          setMessages((current) => {
+            const lastMsg = current[current.length - 1]
+            if (lastMsg?.role === 'assistant' && lastMsg?.content) {
+              const parsedQuestions = parseQuestionsFromText(lastMsg.content)
+              if (parsedQuestions) {
+                setPendingQuestion({
+                  id: 'text-question-' + Date.now(),
+                  questions: parsedQuestions,
+                  fromText: true // Mark as parsed from text
+                })
+              }
+            }
+            return current
+          })
+        }
+
+        // Auto-save
         if (autoSaveRef.current) clearTimeout(autoSaveRef.current)
         autoSaveRef.current = setTimeout(() => {
           setMessages((current) => {
@@ -276,16 +349,27 @@ function App() {
         }
       }
     })
-  }, [onEvent, saveConversation, sendPermissionResponse])
+  }, [onEvent, saveConversation, sendPermissionResponse, pendingQuestion, parseQuestionsFromText])
 
   const handleSend = useCallback(async (message, images = []) => {
     addToHistory(message)
 
-    // Prepend context from answered sub-agent questions
+    // Prepend context from answered questions
     let contextPrefix = ''
+
+    // Include text-based question answers
+    if (textQuestionAnswers) {
+      const answerParts = Object.entries(textQuestionAnswers)
+        .map(([question, answer]) => `Q: "${question}" A: "${answer}"`)
+        .join('\n')
+      contextPrefix += `My answers to your questions:\n${answerParts}\n\n`
+      setTextQuestionAnswers(null)
+    }
+
+    // Include sub-agent question answers
     const answeredQuestions = subAgentQuestions.filter(q => q.answered)
     if (answeredQuestions.length > 0) {
-      contextPrefix = answeredQuestions.map(q => {
+      contextPrefix += answeredQuestions.map(q => {
         const answerParts = Object.entries(q.answers)
           .map(([question, answer]) => `Q: "${question}" A: "${answer}"`)
           .join('; ')
@@ -332,7 +416,7 @@ Then refresh this page.`,
         ])
       }, 500)
     }
-  }, [status, sendMessage, addToHistory, subAgentQuestions])
+  }, [status, sendMessage, addToHistory, subAgentQuestions, textQuestionAnswers])
 
   const handleClear = () => {
     setMessages([])
@@ -363,15 +447,29 @@ Then refresh this page.`,
     setPendingPermissions((prev) => prev.filter((p) => p.name !== toolName))
   }
 
+  const [textQuestionAnswers, setTextQuestionAnswers] = useState(null)
+
   const handleQuestionSubmit = (answers) => {
-    sendQuestionResponse(answers)
-    setPendingQuestion(null)
+    if (pendingQuestion?.fromText) {
+      // For questions parsed from text, store answers to include in next message
+      setTextQuestionAnswers(answers)
+      setPendingQuestion(null)
+    } else {
+      // For real AskUserQuestion tool calls, send via WebSocket
+      sendQuestionResponse(answers)
+      setPendingQuestion(null)
+    }
   }
 
   const handleQuestionCancel = () => {
-    // Send empty response to cancel
-    sendQuestionResponse({})
-    setPendingQuestion(null)
+    if (pendingQuestion?.fromText) {
+      // Just dismiss text-based questions
+      setPendingQuestion(null)
+    } else {
+      // Send empty response to cancel real tool calls
+      sendQuestionResponse({})
+      setPendingQuestion(null)
+    }
   }
 
   const handleSubAgentAnswer = (questionId, answers) => {

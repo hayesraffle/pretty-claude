@@ -196,12 +196,23 @@ function classifyPlanText(text) {
     /^Let me /,
     /^I've found/,
     /^I've identified/,
+    /^I've written/,
+    /^I see that/,
+    /^I have a/,
+    /^I can see/,
     /^The agent found/,
     /^The bug is now/,
     /^Now I'll /,
+    /^Now let me/,
     /^First, /,
+    /^Excellent!/,
+    /^Great!/,
+    /^Perfect!/,
     /explore the codebase/i,
     /investigate/i,
+    /clarifying questions/i,
+    /comprehensive plan/i,
+    /validate the approach/i,
   ]
 
   // Check if text contains summary content
