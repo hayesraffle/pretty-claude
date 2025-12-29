@@ -1,9 +1,56 @@
-import { useState, createContext } from 'react'
+import { useState, createContext, useMemo } from 'react'
 import { Copy, Check, RefreshCw, Pencil } from 'lucide-react'
 import MarkdownRenderer from './MarkdownRenderer'
+import ToolCallView from './ToolCallView'
 
 // Context for controlling collapse state of nested blocks
 export const CollapseContext = createContext({ allCollapsed: false })
+
+// Extract tool calls and their results from events
+function extractToolCalls(events) {
+  if (!events || events.length === 0) return []
+
+  const toolCalls = []
+  const toolResults = new Map()
+
+  // First pass: collect tool results
+  for (const event of events) {
+    if (event.type === 'user') {
+      const content = event.message?.content || []
+      for (const item of content) {
+        if (item.type === 'tool_result') {
+          toolResults.set(item.tool_use_id, item.content)
+        }
+      }
+      // Also check tool_use_result
+      if (event.tool_use_result) {
+        const toolUseId = event.message?.content?.[0]?.tool_use_id
+        if (toolUseId) {
+          toolResults.set(toolUseId, event.tool_use_result)
+        }
+      }
+    }
+  }
+
+  // Second pass: collect tool uses with their results
+  for (const event of events) {
+    if (event.type === 'assistant') {
+      const content = event.message?.content || []
+      for (const item of content) {
+        if (item.type === 'tool_use') {
+          toolCalls.push({
+            id: item.id,
+            name: item.name,
+            input: item.input,
+            result: toolResults.get(item.id),
+          })
+        }
+      }
+    }
+  }
+
+  return toolCalls
+}
 
 function formatTime(date) {
   if (!date) return ''
@@ -13,6 +60,7 @@ function formatTime(date) {
 export default function Message({
   role,
   content,
+  events,
   timestamp,
   isLast,
   onRegenerate,
@@ -23,6 +71,9 @@ export default function Message({
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(content)
   const [allCollapsed, setAllCollapsed] = useState(false)
+
+  // Extract tool calls from events
+  const toolCalls = useMemo(() => extractToolCalls(events), [events])
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content)
@@ -118,14 +169,30 @@ export default function Message({
     )
   }
 
-  // AI message - no container, just plain text flow
+  // AI message - includes tool calls and text content
   return (
-    <div className="animate-slide-up">
-      <CollapseContext.Provider value={{ allCollapsed }}>
-        <div className="prose max-w-none">
-          <MarkdownRenderer content={content} />
+    <div className="animate-slide-up space-y-4">
+      {/* Tool calls */}
+      {toolCalls.length > 0 && (
+        <div className="space-y-2">
+          {toolCalls.map((tool) => (
+            <ToolCallView
+              key={tool.id}
+              toolUse={{ name: tool.name, input: tool.input }}
+              toolResult={tool.result}
+            />
+          ))}
         </div>
-      </CollapseContext.Provider>
+      )}
+
+      {/* Text content */}
+      {content && (
+        <CollapseContext.Provider value={{ allCollapsed }}>
+          <div className="prose max-w-none">
+            <MarkdownRenderer content={content} />
+          </div>
+        </CollapseContext.Provider>
+      )}
 
       {/* Action buttons - shown on hover */}
       {content && (

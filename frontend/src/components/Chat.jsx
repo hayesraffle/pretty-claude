@@ -114,6 +114,7 @@ export default function Chat({
                 key={index}
                 role={message.role}
                 content={message.content}
+                events={message.events}
                 timestamp={message.timestamp}
                 isLast={index === lastAssistantAbsoluteIndex}
                 onRegenerate={
