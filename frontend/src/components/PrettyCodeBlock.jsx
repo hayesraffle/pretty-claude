@@ -699,11 +699,11 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
 
   // Handle adding breadcrumb when popover closes
   const handleAddBreadcrumb = useCallback((breadcrumb) => {
-    // Skip breadcrumbs for text selections (no line index)
-    if (selectedLineIndex === null) return
+    // Skip breadcrumbs if we couldn't determine the line
+    if (selectedLineIndex === null || selectedLineIndex === undefined) return
 
     setBreadcrumbs(prev => {
-      // Avoid duplicates on same line
+      // Avoid duplicates on same line with same content
       const exists = prev.some(b =>
         b.token.content === breadcrumb.token.content && b.lineIndex === selectedLineIndex
       )
@@ -749,8 +749,22 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
         if (text.length > 0 && text.length < 200) { // Reasonable selection length
           const range = sel.getRangeAt(0)
           const rect = range.getBoundingClientRect()
+
+          // Try to find the line index from the selection's container
+          let lineIndex = null
+          const startContainer = range.startContainer
+          const lineElement = startContainer.nodeType === Node.TEXT_NODE
+            ? startContainer.parentElement?.closest('.pretty-code-line')
+            : startContainer.closest?.('.pretty-code-line')
+          if (lineElement && codeBlockRef.current) {
+            const allLines = codeBlockRef.current.querySelectorAll('.pretty-code-line')
+            lineIndex = Array.from(allLines).indexOf(lineElement)
+            if (lineIndex === -1) lineIndex = null
+          }
+
           setSelection({
             text,
+            lineIndex,
             rect: {
               x: rect.left + rect.width / 2,
               y: rect.top - 8,
@@ -779,7 +793,7 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
       content: selection.text,
       types: ['selection'],
     })
-    setSelectedLineIndex(null) // Selections don't have a specific line
+    setSelectedLineIndex(selection.lineIndex) // Use detected line index
     setPopoverPosition({
       x: selection.rect.x,
       y: selection.rect.y + 50,
