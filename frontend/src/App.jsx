@@ -22,7 +22,8 @@ const SAFE_TOOLS = ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Task', 'To
 
 function checkNeedsPermission(toolName, permissionMode) {
   if (permissionMode === 'bypassPermissions') return false
-  if (permissionMode === 'plan') return false // Plan mode handles permissions via CLI
+  // Note: plan mode permission requests come via CLI events, not tool_use
+  if (permissionMode === 'plan') return false
   if (permissionMode === 'acceptEdits') {
     // Only write/edit tools need permission
     return !SAFE_TOOLS.includes(toolName)
@@ -243,9 +244,28 @@ function App() {
           ...prev,
           { role: 'assistant', content: `**Error:** ${event.content}`, timestamp: new Date() },
         ])
+      } else if (event.type === 'permission_request') {
+        // CLI is requesting permission (happens in plan mode and default mode)
+        // Auto-approve reads of user-uploaded images (temp directory)
+        const filePath = event.input?.file_path || event.input?.path || ''
+        const isUserUploadedImage = event.tool === 'Read' && filePath.includes('pretty-code-uploads')
+
+        if (isUserUploadedImage) {
+          // User already provided this image - auto-approve
+          sendPermissionResponse(event.tool_use_id, true)
+        } else {
+          setPendingPermissions((prev) => [
+            ...prev,
+            {
+              id: event.tool_use_id,
+              name: event.tool,
+              input: event.input,
+            },
+          ])
+        }
       }
     })
-  }, [onEvent, saveConversation])
+  }, [onEvent, saveConversation, sendPermissionResponse])
 
   const handleSend = useCallback(async (message, images = []) => {
     addToHistory(message)
