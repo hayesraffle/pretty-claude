@@ -50,13 +50,12 @@ export default function CodeBlock({ code, language = 'javascript', defaultExpand
 
   return (
     <div className="relative my-3 rounded-xl overflow-hidden bg-code-bg code-mode-transition">
-      {/* Header */}
+      {/* Header - commented out for now
       <div className="flex items-center justify-between px-3 py-2">
         <span className="text-[12px] leading-[16px] font-medium text-text-muted">
           {language}
         </span>
         <div className="flex items-center gap-1">
-          {/* Mode toggle - icon shows what you'll get after clicking */}
           <button
             onClick={toggleLocalMode}
             className={`btn-icon w-7 h-7 ${isOverridden ? 'text-accent' : ''}`}
@@ -82,6 +81,7 @@ export default function CodeBlock({ code, language = 'javascript', defaultExpand
           </button>
         </div>
       </div>
+      */}
 
       {/* Render appropriate code view */}
       {isPretty ? (
