@@ -441,7 +441,6 @@ export default function ToolCallView({ toolUse, toolResult, onCancel }) {
         <span className="text-text-muted/50 group-hover:text-text-muted transition-colors">
           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </span>
-        <Icon size={14} className="flex-shrink-0" />
         {label && <span className="text-text-muted">{label}</span>}
         <span className="text-text truncate">{summary}</span>
 
@@ -470,7 +469,7 @@ export default function ToolCallView({ toolUse, toolResult, onCancel }) {
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="ml-5 pl-3 border-l border-border/50 mt-1 mb-2">
+        <div className="ml-1.5 pl-3 border-l border-border/50 mt-1 mb-2">
           {renderContent()}
         </div>
       )}
