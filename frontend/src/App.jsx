@@ -10,6 +10,7 @@ import PermissionPrompt from './components/PermissionPrompt'
 import TodoList from './components/TodoList'
 import QuestionPrompt from './components/QuestionPrompt'
 import PlanModeBar from './components/PlanModeBar'
+import GitActionBar from './components/GitActionBar'
 import SettingsPanel from './components/SettingsPanel'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useDarkMode } from './hooks/useDarkMode'
@@ -62,6 +63,8 @@ function App() {
   const [showCodePreview, setShowCodePreview] = useState(false)
   const [workingDir, setWorkingDir] = useState('')
   const [textQuestionAnswers, setTextQuestionAnswers] = useState(null)
+  const [showCommitPrompt, setShowCommitPrompt] = useState(false)
+  const [commitStatus, setCommitStatus] = useState('ready') // ready, committing, committed, pushing, pushed
   const { permissionMode, setPermissionMode: setPermissionModeSettings } = useSettings()
   const { isDark, toggle: toggleDarkMode } = useDarkMode()
   const { globalMode, toggleGlobalMode } = useCodeDisplayMode()
@@ -460,9 +463,9 @@ function App() {
           })
         }
 
-        // Celebrate successful completion (no pending questions or errors)
+        // Show git commit prompt on successful completion (no pending questions or errors)
         if (shouldCelebrate) {
-          setTimeout(celebrate, 300)
+          setShowCommitPrompt(true)
         }
 
         // Auto-save using Claude's session_id as the conversation ID
@@ -565,6 +568,7 @@ function App() {
 
   const handleSend = useCallback(async (message, images = []) => {
     addToHistory(message)
+    setShowCommitPrompt(false) // Hide commit prompt when sending a new message
 
     // Prepend context from answered questions
     let contextPrefix = ''
@@ -644,6 +648,7 @@ Then refresh this page.`,
     setPendingPermissions([])
     setSubAgentQuestions([])
     hasSubAgentQuestionsRef.current = false
+    setShowCommitPrompt(false)
   }
 
   const handleStop = () => {
@@ -952,6 +957,16 @@ Then refresh this page.`,
           planReady={planReady}
           onApprovePlan={handleApprovePlan}
         />
+
+        {/* Git Action Bar - show when task completes */}
+        {showCommitPrompt && (
+          <GitActionBar
+            onCommit={() => {}}
+            onPush={() => {}}
+            onDismiss={() => setShowCommitPrompt(false)}
+            onCelebrate={celebrate}
+          />
+        )}
 
         {/* Chat area */}
         <Chat

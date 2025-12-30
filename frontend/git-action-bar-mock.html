@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitActionBar UI Mock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-background: #ffffff;
+      --color-surface: #f1f3f4;
+      --color-surface-hover: #e8eaed;
+      --color-text: #1f1f1f;
+      --color-text-muted: #5f6368;
+      --color-border: #dadce0;
+      --color-accent: #0b57d0;
+      --color-accent-hover: #0842a0;
+      --color-cta: #0b57d0;
+      --color-cta-text: #ffffff;
+      --color-success: #137333;
+    }
+
+    .dark {
+      --color-background: #1f1f1f;
+      --color-surface: #303134;
+      --color-surface-hover: #3c4043;
+      --color-text: #e8eaed;
+      --color-text-muted: #9aa0a6;
+      --color-border: #5f6368;
+      --color-accent: #8ab4f8;
+      --color-accent-hover: #aecbfa;
+      --color-cta: #8ab4f8;
+      --color-cta-text: #1f1f1f;
+      --color-success: #81c995;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
+      background-color: var(--color-background);
+      color: var(--color-text);
+      transition: background-color 0.2s ease, color 0.2s ease;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 400;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--color-text-muted);
+      margin-bottom: 2rem;
+    }
+
+    .section {
+      margin-bottom: 2rem;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--color-text-muted);
+      margin-bottom: 1rem;
+    }
+
+    /* Dark mode toggle */
+    .theme-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 100px;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-text);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .theme-toggle:hover {
+      background: var(--color-surface-hover);
+    }
+
+    /* GitActionBar styles */
+    .git-action-bar-container {
+      display: flex;
+      justify-content: center;
+      padding: 0.75rem 0;
+    }
+
+    .git-action-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .git-action-bar.success {
+      background: rgba(34, 197, 94, 0.1);
+      padding: 0.5rem 1rem;
+      border-radius: 100px;
+    }
+
+    .dark .git-action-bar.success {
+      background: rgba(129, 201, 149, 0.15);
+    }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .icon-success {
+      color: var(--color-success);
+    }
+
+    .status-text {
+      font-size: 14px;
+      color: var(--color-text);
+      white-space: nowrap;
+    }
+
+    .status-text.success {
+      color: var(--color-success);
+      font-weight: 500;
+    }
+
+    .btn-cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-cta-text);
+      background-color: var(--color-cta);
+      border: none;
+      border-radius: 100px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      font-family: inherit;
+    }
+
+    .btn-cta:hover {
+      background-color: var(--color-accent-hover);
+    }
+
+    .btn-cta:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    /* Preview container */
+    .preview-box {
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .preview-label {
+      padding: 0.5rem 1rem;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" onclick="toggleTheme()">Toggle Dark Mode</button>
+
+  <div class="container">
+    <h1>GitActionBar UI States</h1>
+    <p class="subtitle">Preview all states. Click the toggle above to switch themes.</p>
+
+    <!-- State: Ready to commit -->
+    <div class="section">
+      <div class="section-title">Ready to Commit</div>
+      <div class="preview-box">
+        <div class="git-action-bar-container">
+          <div class="git-action-bar">
+            <button class="btn-cta">Commit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State: Committing -->
+    <div class="section">
+      <div class="section-title">Committing...</div>
+      <div class="preview-box">
+        <div class="git-action-bar-container">
+          <div class="git-action-bar">
+            <span class="status-text">Committing...</span>
+            <button class="btn-cta" disabled>
+              <svg class="icon animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State: Committed (ready to push) -->
+    <div class="section">
+      <div class="section-title">Committed (Ready to Push)</div>
+      <div class="preview-box">
+        <div class="git-action-bar-container">
+          <div class="git-action-bar">
+            <svg class="icon icon-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span class="status-text">Committed</span>
+            <button class="btn-cta">Push</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State: Pushing -->
+    <div class="section">
+      <div class="section-title">Pushing...</div>
+      <div class="preview-box">
+        <div class="git-action-bar-container">
+          <div class="git-action-bar">
+            <svg class="icon icon-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span class="status-text">Pushing...</span>
+            <button class="btn-cta" disabled>
+              <svg class="icon animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State: Pushed (success) -->
+    <div class="section">
+      <div class="section-title">Pushed Successfully</div>
+      <div class="preview-box">
+        <div class="git-action-bar-container">
+          <div class="git-action-bar success">
+            <svg class="icon icon-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span class="status-text success">Pushed</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State: Error -->
+    <div class="section">
+      <div class="section-title">Error State</div>
+      <div class="preview-box">
+        <div class="git-action-bar-container">
+          <div class="git-action-bar">
+            <span class="status-text">Push failed: no upstream</span>
+            <button class="btn-cta">Retry</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Demo -->
+    <div class="section" style="margin-top: 3rem;">
+      <div class="section-title">Interactive Demo</div>
+      <div class="preview-box">
+        <div class="preview-label">Click the buttons to see state transitions</div>
+        <div id="interactive-container" class="git-action-bar-container">
+          <div id="interactive-bar" class="git-action-bar">
+            <span id="icon-container"></span>
+            <span id="status-text" class="status-text" style="display: none;"></span>
+            <button id="action-btn" class="btn-cta" onclick="handleAction()">Commit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let state = 'ready'
+
+    function toggleTheme() {
+      document.documentElement.classList.toggle('dark')
+    }
+
+    function handleAction() {
+      if (state === 'ready') {
+        setState('committing')
+        setTimeout(() => setState('committed'), 1000)
+      } else if (state === 'committed') {
+        setState('pushing')
+        setTimeout(() => setState('pushed'), 1000)
+      }
+    }
+
+    function reset() {
+      setState('ready')
+    }
+
+    function setState(newState) {
+      state = newState
+      const bar = document.getElementById('interactive-bar')
+      const iconContainer = document.getElementById('icon-container')
+      const statusText = document.getElementById('status-text')
+      const actionBtn = document.getElementById('action-btn')
+
+      // Reset bar class
+      bar.className = 'git-action-bar'
+      actionBtn.style.display = ''
+
+      if (state === 'ready') {
+        iconContainer.innerHTML = ''
+        statusText.style.display = 'none'
+        statusText.className = 'status-text'
+        actionBtn.textContent = 'Commit'
+        actionBtn.disabled = false
+      } else if (state === 'committing') {
+        iconContainer.innerHTML = ''
+        statusText.style.display = ''
+        statusText.textContent = 'Committing...'
+        actionBtn.innerHTML = '<svg class="icon animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>'
+        actionBtn.disabled = true
+      } else if (state === 'committed') {
+        iconContainer.innerHTML = '<svg class="icon icon-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>'
+        statusText.style.display = ''
+        statusText.textContent = 'Committed'
+        actionBtn.textContent = 'Push'
+        actionBtn.disabled = false
+      } else if (state === 'pushing') {
+        iconContainer.innerHTML = '<svg class="icon icon-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>'
+        statusText.style.display = ''
+        statusText.textContent = 'Pushing...'
+        actionBtn.innerHTML = '<svg class="icon animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>'
+        actionBtn.disabled = true
+      } else if (state === 'pushed') {
+        bar.className = 'git-action-bar success'
+        iconContainer.innerHTML = '<svg class="icon icon-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>'
+        statusText.style.display = ''
+        statusText.textContent = 'Pushed'
+        statusText.className = 'status-text success'
+        actionBtn.style.display = 'none'
+        // Auto-reset after 2s
+        setTimeout(reset, 2000)
+      }
+    }
+  </script>
+</body>
+</html>

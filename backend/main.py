@@ -4,6 +4,7 @@ import os
 import uuid
 import base64
 import tempfile
+import subprocess
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File
@@ -427,6 +428,139 @@ async def delete_conversation(conv_id: str):
     try:
         filepath.unlink()
         return {"id": conv_id, "status": "deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============ Git API ============
+
+@app.get("/api/git/status")
+async def git_status():
+    """Get git status - whether there are uncommitted changes."""
+    global current_working_dir
+
+    try:
+        # Check if we're in a git repo
+        result = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=current_working_dir,
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            return {"isGitRepo": False, "hasChanges": False}
+
+        # Get status
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=current_working_dir,
+            capture_output=True,
+            text=True
+        )
+
+        has_changes = len(result.stdout.strip()) > 0
+
+        # Get current branch
+        branch_result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=current_working_dir,
+            capture_output=True,
+            text=True
+        )
+        branch = branch_result.stdout.strip() if branch_result.returncode == 0 else "unknown"
+
+        # Check if there are unpushed commits
+        unpushed_result = subprocess.run(
+            ["git", "log", "@{u}..", "--oneline"],
+            cwd=current_working_dir,
+            capture_output=True,
+            text=True
+        )
+        has_unpushed = len(unpushed_result.stdout.strip()) > 0 if unpushed_result.returncode == 0 else False
+
+        return {
+            "isGitRepo": True,
+            "hasChanges": has_changes,
+            "hasUnpushed": has_unpushed,
+            "branch": branch
+        }
+    except Exception as e:
+        return {"isGitRepo": False, "hasChanges": False, "error": str(e)}
+
+
+class CommitRequest(BaseModel):
+    message: str | None = None
+
+
+@app.post("/api/git/commit")
+async def git_commit(request: CommitRequest):
+    """Stage all changes and commit with a generated or provided message."""
+    global current_working_dir
+
+    try:
+        # Stage all changes
+        stage_result = subprocess.run(
+            ["git", "add", "-A"],
+            cwd=current_working_dir,
+            capture_output=True,
+            text=True
+        )
+        if stage_result.returncode != 0:
+            raise HTTPException(status_code=500, detail=f"Failed to stage: {stage_result.stderr}")
+
+        # Generate commit message if not provided
+        if request.message:
+            commit_message = request.message
+        else:
+            # Get a summary of changes for the commit message
+            diff_result = subprocess.run(
+                ["git", "diff", "--cached", "--stat"],
+                cwd=current_working_dir,
+                capture_output=True,
+                text=True
+            )
+            commit_message = "Changes from pretty-code session"
+
+        # Commit
+        commit_result = subprocess.run(
+            ["git", "commit", "-m", commit_message],
+            cwd=current_working_dir,
+            capture_output=True,
+            text=True
+        )
+
+        if commit_result.returncode != 0:
+            # Check if nothing to commit
+            if "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
+                return {"success": False, "message": "Nothing to commit"}
+            raise HTTPException(status_code=500, detail=f"Failed to commit: {commit_result.stderr}")
+
+        return {"success": True, "message": commit_message, "output": commit_result.stdout}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/git/push")
+async def git_push():
+    """Push committed changes to remote."""
+    global current_working_dir
+
+    try:
+        result = subprocess.run(
+            ["git", "push"],
+            cwd=current_working_dir,
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail=f"Failed to push: {result.stderr}")
+
+        return {"success": True, "output": result.stdout or result.stderr}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
