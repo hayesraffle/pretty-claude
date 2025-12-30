@@ -37,7 +37,9 @@ const SCOPE_MAPPINGS = [
   { pattern: 'string.quoted.single.jsx', class: TOKEN_CLASSES.attrValue },
   { pattern: 'string.template.tsx', class: TOKEN_CLASSES.attrValue },
   { pattern: 'string.template.jsx', class: TOKEN_CLASSES.attrValue },
-  { pattern: 'meta.jsx.children', class: TOKEN_CLASSES.plain },
+  // NOTE: Removed 'meta.jsx.children' pattern - it was matching too early and
+  // overriding more specific scopes like variable, punctuation, etc.
+  // Plain text in JSX will still get token-plain if no other scopes match.
 
   // Keywords
   { pattern: 'keyword.control', class: TOKEN_CLASSES.keyword },
