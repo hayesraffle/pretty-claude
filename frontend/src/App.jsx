@@ -21,6 +21,28 @@ import { useSettings } from './contexts/SettingsContext'
 // Tools that are considered safe (read-only or low-risk)
 const SAFE_TOOLS = ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Task', 'TodoWrite', 'AskUserQuestion']
 
+// Shows time since last WebSocket event - helps debug hangs
+function LastEventIndicator({ lastEventTime }) {
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - lastEventTime) / 1000))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [lastEventTime])
+
+  // Only show if no event in last 5 seconds
+  if (elapsed < 5) return null
+
+  const isStale = elapsed >= 30
+  return (
+    <span className={`text-xs ${isStale ? 'text-warning' : 'text-text-muted'}`} title="Time since last WebSocket event">
+      {isStale ? '⚠️ ' : ''}last event {elapsed}s ago
+    </span>
+  )
+}
+
 // Subtle celebration animation on task completion
 function celebrate() {
   try {
@@ -68,7 +90,7 @@ function App() {
   const [workingDir, setWorkingDir] = useState('')
   const [textQuestionAnswers, setTextQuestionAnswers] = useState(null)
   const [showCommitPrompt, setShowCommitPrompt] = useState(false)
-  const [commitStatus, setCommitStatus] = useState('ready') // ready, committing, committed, pushing, pushed
+  const [initialGitState, setInitialGitState] = useState('ready') // ready, committed (for restoring state on refresh)
   const { permissionMode, setPermissionMode: setPermissionModeSettings } = useSettings()
   const { isDark, toggle: toggleDarkMode } = useDarkMode()
   const { globalMode, toggleGlobalMode } = useCodeDisplayMode()
@@ -84,6 +106,7 @@ function App() {
   const {
     status,
     isStreaming,
+    lastEventTime,
     sendMessage,
     stopGeneration,
     sendPermissionResponse,
@@ -106,6 +129,26 @@ function App() {
       .then(res => res.json())
       .then(data => {
         if (data.cwd) setWorkingDir(data.cwd)
+      })
+      .catch(() => {})
+  }, [])
+
+  // Check git status on mount to restore commit prompt if there are uncommitted changes
+  useEffect(() => {
+    fetch('http://localhost:8000/api/git/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.is_repo) {
+          if (data.has_changes) {
+            // Has uncommitted changes - show Commit button
+            setShowCommitPrompt(true)
+            setInitialGitState('ready')
+          } else if (data.has_unpushed) {
+            // Already committed but not pushed - show Push button
+            setShowCommitPrompt(true)
+            setInitialGitState('committed')
+          }
+        }
       })
       .catch(() => {})
   }, [])
@@ -926,7 +969,7 @@ Then refresh this page.`,
               <div className="flex items-center gap-2 text-[13px]">
                 {status === 'connected' ? (
                   <span className="flex items-center gap-1.5 text-success">
-                    <span className="w-2 h-2 rounded-full bg-success"></span>
+                    <span className={`w-2 h-2 rounded-full bg-success ${isWorking ? 'animate-pulse' : ''}`}></span>
                     Connected
                   </span>
                 ) : status === 'connecting' ? (
@@ -939,6 +982,10 @@ Then refresh this page.`,
                     <span className="w-2 h-2 rounded-full bg-text-muted"></span>
                     Offline
                   </span>
+                )}
+                {/* Show time since last event when working - helps debug hangs */}
+                {isWorking && lastEventTime && (
+                  <LastEventIndicator lastEventTime={lastEventTime} />
                 )}
               </div>
             </div>
@@ -975,6 +1022,7 @@ Then refresh this page.`,
           workingDir={workingDir}
           onChangeWorkingDir={() => setFileBrowserOpen(true)}
           showCommitPrompt={showCommitPrompt}
+          initialGitState={initialGitState}
           onCommitDismiss={() => setShowCommitPrompt(false)}
           onCelebrate={celebrate}
         />

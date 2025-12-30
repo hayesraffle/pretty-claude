@@ -266,6 +266,7 @@ export default function Message({
   onRegenerate,
   onEdit,
   showGitActionBar,
+  initialGitState,
   onCommitDismiss,
   onCelebrate,
 }) {
@@ -495,6 +496,7 @@ export default function Message({
       {/* Git action bar - shown after task completion */}
       {showGitActionBar && (
         <GitActionBar
+          initialState={initialGitState}
           onDismiss={onCommitDismiss}
           onCelebrate={onCelebrate}
         />

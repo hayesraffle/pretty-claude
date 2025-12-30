@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Check, Loader2, ChevronRight, ChevronDown, GitCommit, GitBranch } from 'lucide-react'
+import { Loader2, ChevronRight, ChevronDown, GitCommit, GitBranch } from 'lucide-react'
 
-export default function GitActionBar({ onCommit, onPush, onDismiss, onCelebrate }) {
-  const [status, setStatus] = useState('ready') // ready, committing, committed, pushing, pushed, error
+export default function GitActionBar({ initialState = 'ready', onCommit, onPush, onDismiss, onCelebrate }) {
+  const [status, setStatus] = useState(initialState) // ready, committing, committed, pushing, pushed, error
   const [error, setError] = useState(null)
   const [commitData, setCommitData] = useState(null)
   const [pushData, setPushData] = useState(null)
@@ -129,7 +129,6 @@ export default function GitActionBar({ onCommit, onPush, onDismiss, onCelebrate 
           <span className="text-success/50">
             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </span>
-          <Check size={16} />
           Pushed
         </button>
         {renderDetails()}
@@ -150,9 +149,6 @@ export default function GitActionBar({ onCommit, onPush, onDismiss, onCelebrate 
           >
             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
-        )}
-        {status === 'committed' && (
-          <Check size={16} className="text-success flex-shrink-0" />
         )}
         {status !== 'ready' && (
           <span className="text-sm text-text whitespace-nowrap">

@@ -8,6 +8,7 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
   const [status, setStatus] = useState('disconnected') // disconnected, connecting, connected
   const [isStreaming, setIsStreaming] = useState(false)
   const [sessionInfo, setSessionInfo] = useState(null)
+  const [lastEventTime, setLastEventTime] = useState(null) // For debugging - when was last event received
   const wsRef = useRef(null)
   const onEventRef = useRef(null)
   const permissionModeRef = useRef(permissionMode)
@@ -65,6 +66,10 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
       try {
         const data = JSON.parse(event.data)
 
+        // Debug logging - always log events to console for debugging
+        console.log('%c[WS]', 'color: #8b5cf6; font-weight: bold', data.type, data.subtype || '', data)
+        setLastEventTime(Date.now())
+
         // Handle streaming state based on event types
         if (data.type === 'system' && data.subtype === 'init') {
           setIsStreaming(true)
@@ -112,7 +117,9 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
 
   const sendMessage = useCallback((content, images = []) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'message', content, images }))
+      const msg = { type: 'message', content, images }
+      console.log('%c[WS→]', 'color: #22c55e; font-weight: bold', 'message', msg)
+      wsRef.current.send(JSON.stringify(msg))
       return true
     }
     return false
@@ -174,6 +181,7 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
     status,
     isStreaming,
     sessionInfo,
+    lastEventTime,
     sendMessage,
     stopGeneration,
     sendPermissionResponse,
