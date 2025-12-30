@@ -433,6 +433,11 @@ export default function ToolCallView({ toolUse, toolResult, onCancel }) {
             </div>
           </div>
         )}
+
+        {/* Cancelled indicator */}
+        {!isLoading && result === '(cancelled)' && (
+          <span className="text-xs text-text-muted ml-auto">cancelled</span>
+        )}
       </button>
 
       {/* Expanded content */}

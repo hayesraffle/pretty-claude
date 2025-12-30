@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Code, FileText, Lightbulb, Wrench, FolderOpen } from 'lucide-react'
 import Message from './Message'
 import CodeBlock from './CodeBlock'
+import GitActionBar from './GitActionBar'
 
 const DEMO_CODE = `function calculateTotal(items, taxRate) {
   // Sum all item prices with tax
@@ -61,6 +62,9 @@ export default function Chat({
   showCodePreview,
   workingDir,
   onChangeWorkingDir,
+  showCommitPrompt,
+  onCommitDismiss,
+  onCelebrate,
 }) {
   const bottomRef = useRef(null)
 
@@ -90,17 +94,15 @@ export default function Chat({
             </h1>
 
             {/* Working Directory */}
-            <div className="mb-8 flex items-center gap-2">
-              <div className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-pretty-selection hover:bg-text/[0.06] transition-colors">
+            <div className="mb-8">
+              <button
+                onClick={onChangeWorkingDir}
+                title="Change working directory"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-pretty-selection hover:bg-text/[0.06] transition-colors cursor-pointer"
+              >
                 <FolderOpen size={14} className="text-text-muted flex-shrink-0" />
                 <span className="text-[13px] text-text-muted mr-1">Working in:</span>
                 <span className="text-[13px] text-text font-mono truncate">{workingDir || '/'}</span>
-              </div>
-              <button
-                onClick={onChangeWorkingDir}
-                className="px-4 py-2.5 text-[13px] rounded-lg bg-pretty-selection hover:bg-text/[0.06] text-text transition-colors"
-              >
-                Change
               </button>
             </div>
 
@@ -159,6 +161,12 @@ export default function Chat({
                 }
               />
             ))}
+            {showCommitPrompt && (
+              <GitActionBar
+                onDismiss={onCommitDismiss}
+                onCelebrate={onCelebrate}
+              />
+            )}
           </div>
         )}
         <div ref={bottomRef} />

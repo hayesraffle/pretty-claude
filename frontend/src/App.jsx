@@ -10,7 +10,6 @@ import PermissionPrompt from './components/PermissionPrompt'
 import TodoList from './components/TodoList'
 import QuestionPrompt from './components/QuestionPrompt'
 import PlanModeBar from './components/PlanModeBar'
-import GitActionBar from './components/GitActionBar'
 import SettingsPanel from './components/SettingsPanel'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useDarkMode } from './hooks/useDarkMode'
@@ -958,16 +957,6 @@ Then refresh this page.`,
           onApprovePlan={handleApprovePlan}
         />
 
-        {/* Git Action Bar - show when task completes */}
-        {showCommitPrompt && (
-          <GitActionBar
-            onCommit={() => {}}
-            onPush={() => {}}
-            onDismiss={() => setShowCommitPrompt(false)}
-            onCelebrate={celebrate}
-          />
-        )}
-
         {/* Chat area */}
         <Chat
           messages={messages}
@@ -980,6 +969,9 @@ Then refresh this page.`,
           showCodePreview={showCodePreview}
           workingDir={workingDir}
           onChangeWorkingDir={() => setFileBrowserOpen(true)}
+          showCommitPrompt={showCommitPrompt}
+          onCommitDismiss={() => setShowCommitPrompt(false)}
+          onCelebrate={celebrate}
         />
 
         {/* Permission Prompts */}
