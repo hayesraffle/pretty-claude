@@ -120,14 +120,14 @@ export default function SettingsPanel({ isOpen, onClose, workingDir, onChangeWor
                   <EyeOff size={14} className="text-text-muted" />
                 )}
                 <span className="text-xs">
-                  {showToolDetails ? 'Showing tool calls' : 'Hidden by default'}
+                  {showToolDetails ? 'Expanded' : 'Collapsed'}
                 </span>
               </div>
-              <div className={`w-8 h-4 rounded-full transition-colors ${
+              <div className={`w-8 h-4 rounded-full transition-colors relative ${
                 showToolDetails ? 'bg-accent' : 'bg-border'
               }`}>
-                <div className={`w-3 h-3 rounded-full bg-white mt-0.5 transition-transform ${
-                  showToolDetails ? 'translate-x-4.5 ml-0.5' : 'translate-x-0.5'
+                <div className={`w-3 h-3 rounded-full bg-white absolute top-0.5 transition-all ${
+                  showToolDetails ? 'left-[18px]' : 'left-0.5'
                 }`} />
               </div>
             </button>
@@ -167,14 +167,14 @@ export default function SettingsPanel({ isOpen, onClose, workingDir, onChangeWor
               <div className="flex items-center gap-2">
                 <Code size={14} className="text-text-muted" />
                 <span className="text-xs">
-                  {showCodePreview ? 'Hide preview' : 'Show code UI preview'}
+                  {showCodePreview ? 'Visible' : 'Hidden'}
                 </span>
               </div>
-              <div className={`w-8 h-4 rounded-full transition-colors ${
+              <div className={`w-8 h-4 rounded-full transition-colors relative ${
                 showCodePreview ? 'bg-accent' : 'bg-border'
               }`}>
-                <div className={`w-3 h-3 rounded-full bg-white mt-0.5 transition-transform ${
-                  showCodePreview ? 'translate-x-4.5 ml-0.5' : 'translate-x-0.5'
+                <div className={`w-3 h-3 rounded-full bg-white absolute top-0.5 transition-all ${
+                  showCodePreview ? 'left-[18px]' : 'left-0.5'
                 }`} />
               </div>
             </button>
