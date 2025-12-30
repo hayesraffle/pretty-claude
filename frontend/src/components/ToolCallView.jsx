@@ -469,7 +469,7 @@ export default function ToolCallView({ toolUse, toolResult, onCancel }) {
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="ml-1.5 pl-3 border-l border-border/50 mt-1 mb-2">
+        <div className="mt-1 mb-2">
           {renderContent()}
         </div>
       )}
