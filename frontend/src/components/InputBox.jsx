@@ -281,8 +281,16 @@ function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNav
               <button
                 type="button"
                 onClick={onChangeWorkingDir}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]
-                           bg-surface hover:bg-text/10 transition-colors max-w-[200px]"
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors max-w-[200px]"
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--color-pretty-selection) 50%, transparent)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--color-pretty-selection)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-pretty-selection) 50%, transparent)'
+                }}
                 title={`Working directory: ${workingDir}\nClick to change`}
               >
                 <Folder size={10} className="flex-shrink-0" />
