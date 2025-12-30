@@ -119,38 +119,61 @@ function ReadRenderer({ input, result }) {
         <CopyButton text={content} />
       </div>
       {content && (
-        <div className="max-h-60 overflow-auto">
-          <CodeBlock code={content} language={language} />
-        </div>
+        <CodeBlock code={content} language={language} collapsible={false} />
       )}
     </div>
   )
 }
 
-// Edit file renderer with diff
-function EditRenderer({ input, result, monoClass }) {
+// Edit file renderer - uses CodeBlock for full PrettyCodeBlock features
+function EditRenderer({ input }) {
   const filePath = input?.file_path || 'Unknown file'
   const oldString = input?.old_string || ''
   const newString = input?.new_string || ''
+  const language = getLanguageFromPath(filePath)
+
+  // Handle empty cases
+  if (!oldString && !newString) {
+    return (
+      <div className="space-y-2">
+        <InlineCode language="text" className="text-xs text-text-muted">
+          {filePath}
+        </InlineCode>
+        <div className="text-xs text-text-muted">(no changes)</div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-2">
-      <InlineCode language="text" className="text-xs text-text-muted block">
+      <InlineCode language="text" className="text-xs text-text-muted">
         {filePath}
       </InlineCode>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <div className="text-xs text-error font-medium mb-1">- Removed</div>
-          <pre className={`text-xs bg-error/10 text-error p-2 rounded overflow-auto max-h-40 ${monoClass}`}>
-            {oldString || '(empty)'}
-          </pre>
-        </div>
-        <div>
-          <div className="text-xs text-success font-medium mb-1">+ Added</div>
-          <pre className={`text-xs bg-success/10 text-success p-2 rounded overflow-auto max-h-40 ${monoClass}`}>
-            {newString || '(empty)'}
-          </pre>
-        </div>
+
+      <div className="space-y-4">
+        {/* Removed block - dimmed */}
+        {oldString && (
+          <div className="flex gap-2 items-center">
+            <span className="select-none bg-error/20 text-error font-bold w-6 h-6 flex items-center justify-center rounded flex-shrink-0">
+              −
+            </span>
+            <div className="flex-1 opacity-40">
+              <CodeBlock code={oldString} language={language} collapsible={false} />
+            </div>
+          </div>
+        )}
+
+        {/* Added block - full styling */}
+        {newString && (
+          <div className="flex gap-2 items-center">
+            <span className="select-none bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400 font-bold w-6 h-6 flex items-center justify-center rounded flex-shrink-0">
+              +
+            </span>
+            <div className="flex-1">
+              <CodeBlock code={newString} language={language} collapsible={false} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -388,7 +411,7 @@ export default function ToolCallView({ toolUse, toolResult, onCancel }) {
       case 'Read':
         return <ReadRenderer input={input} result={result} />
       case 'Edit':
-        return <EditRenderer input={input} result={result} monoClass={monoClass} />
+        return <EditRenderer input={input} />
       case 'Write':
         return <WriteRenderer input={input} />
       case 'Bash':

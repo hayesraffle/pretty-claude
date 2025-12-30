@@ -946,11 +946,28 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
 
                 const isSelectionLine = isSelectedSelectionLine || isHoveredSelectionLine
 
+                // Calculate padding for text wrapping to respect indentation
+                const indentPadding = indentLevel * 32 // 24px width + 8px margin per level
+
                 return (
                   <div
                     key={lineIndex}
                     className={`pretty-code-line group ${rangeStart ? 'definition-line' : ''} ${isSelectionLine ? 'bg-pretty-selection rounded' : ''}`}
+                    style={{ paddingLeft: indentPadding > 0 ? `${indentPadding}px` : undefined }}
                   >
+                    {/* Indent guides - positioned absolutely within padding */}
+                    {indentLevel > 0 && (
+                      <span className="pretty-code-indent-guides" aria-hidden="true">
+                        {Array.from({ length: indentLevel }).map((_, i) => (
+                          <span
+                            key={i}
+                            className="pretty-code-indent-line"
+                            style={{ left: `${i * 32 + 8}px` }}
+                          />
+                        ))}
+                      </span>
+                    )}
+
                     {/* Collapse toggle for definition lines */}
                     {rangeStart && (
                       <button
@@ -958,6 +975,7 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
                         className="collapse-toggle inline-flex items-center justify-center w-4 h-4 mr-1
                                    rounded hover:bg-text/10 transition-colors flex-shrink-0"
                         title={isRangeCollapsed ? 'Expand' : 'Collapse'}
+                        style={{ marginLeft: indentPadding > 0 ? `-${indentPadding}px` : undefined }}
                       >
                         {isRangeCollapsed
                           ? <ChevronRight size={12} className="text-text-muted" />
@@ -965,11 +983,6 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
                         }
                       </button>
                     )}
-
-                    {/* Render indent guides */}
-                    {Array.from({ length: indentLevel }).map((_, i) => (
-                      <span key={i} className="pretty-code-indent" />
-                    ))}
 
                     {/* Render tokens */}
                     {line.map((token, tokenIndex) => {

@@ -48,9 +48,20 @@ const TOOL_VERBS = {
   AskUserQuestion: 'Asking',
 }
 
-// Grouped tool calls (collapsed by default)
+// Grouped tool calls (collapsed by default, but single tools render directly)
 function ToolCallsGroup({ tools, explorationContent }) {
   const [isExpanded, setIsExpanded] = useState(false)
+
+  // Single tool without exploration content → render directly without group wrapper
+  if (tools.length === 1 && !explorationContent) {
+    const tool = tools[0]
+    return (
+      <ToolCallView
+        toolUse={{ name: tool.name, input: tool.input }}
+        toolResult={tool.result}
+      />
+    )
+  }
 
   // Count by type for summary
   const counts = {}

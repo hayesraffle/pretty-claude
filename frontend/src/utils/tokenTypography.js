@@ -43,7 +43,7 @@ export const TOKEN_STYLES = {
   // === TAGS/ATTRIBUTES (HTML/JSX) ===
   tag: 'token-tag',
   'attr-name': 'token-attr-name',
-  'attr-value': 'token-string',
+  'attr-value': 'token-attr-value',
   namespace: 'token-namespace',
 
   // === TYPES ===

@@ -6,7 +6,7 @@ import PrettyCodeBlock from './PrettyCodeBlock'
 
 const COLLAPSE_THRESHOLD = 15
 
-export default function CodeBlock({ code, language = 'javascript', defaultExpanded = false }) {
+export default function CodeBlock({ code, language = 'javascript', defaultExpanded = false, collapsible = true }) {
   const [copied, setCopied] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [localMode, setLocalMode] = useState(null) // null = use global
@@ -15,7 +15,7 @@ export default function CodeBlock({ code, language = 'javascript', defaultExpand
 
   const lines = code.trim().split('\n')
   const lineCount = lines.length
-  const canCollapse = lineCount > COLLAPSE_THRESHOLD
+  const canCollapse = collapsible && lineCount > COLLAPSE_THRESHOLD
 
   // Determine which mode to use (local override or global)
   const activeMode = localMode ?? globalMode
