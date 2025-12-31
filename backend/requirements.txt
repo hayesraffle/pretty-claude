@@ -3,3 +3,4 @@ uvicorn[standard]
 websockets
 anthropic
 python-dotenv
+claude-agent-sdk

@@ -17,14 +17,16 @@ Browser (React + TailwindCSS)
     ▼
 Local Server (FastAPI/Python)
     │
-    │ subprocess (--input-format stream-json --output-format stream-json)
+    │ claude-agent-sdk (Python SDK with can_use_tool callback)
     ▼
-Claude Code CLI
+Claude Code (bundled with SDK)
 ```
 
 Key architectural decisions:
-- **Bidirectional WebSocket**: Allows real-time streaming AND interrupts (stop, permission responses)
-- **Images sent as base64**: Images are sent directly in Claude's native API format, not as file paths
+- **Claude Agent SDK**: Uses official `claude-agent-sdk` Python package for Claude integration
+- **Permission handling**: SDK's `can_use_tool` callback enables proper permission prompts
+- **Bidirectional WebSocket**: Real-time streaming AND interrupts (stop, permission responses)
+- **Images sent as base64**: Images are sent directly in Claude's native API format
 - **Concurrent streaming**: Backend uses asyncio tasks to handle streaming while listening for interrupts
 - **Persistent conversations**: Saved to `~/.pretty-code/conversations/` as JSON files
 
@@ -82,12 +84,13 @@ frontend/src/
 
 backend/
   main.py                 # FastAPI server, WebSocket endpoint, file/conversation APIs
-  claude_runner.py        # Claude Code CLI subprocess wrapper with streaming
+  claude_sdk_runner.py    # Claude Agent SDK wrapper with can_use_tool callback (default)
+  claude_runner.py        # Legacy CLI subprocess wrapper (fallback, set USE_CLI_RUNNER=1)
 ```
 
 ## Features
 
-- **Real-time streaming** from Claude Code CLI via WebSocket
+- **Real-time streaming** from Claude Agent SDK via WebSocket
 - **Image support** - drag & drop images, sent as base64 directly to Claude
 - **Permission modes** - YOLO (bypass), Plan, Accept Edits, Always Ask
 - **Tool call rendering** - Pretty display of Read, Edit, Bash, Glob, Grep, etc.
@@ -124,20 +127,12 @@ backend/
 ```
 
 **MUST use for:**
-- Yes/no confirmations ("Should I proceed?", "Would you like me to...?")
-- Approval requests ("This requires your approval")
 - Multiple choice questions with 2-4 clear options
 - Any question expecting a short, predictable response
 
-**Example - asking to proceed:**
-```ui-action
-{"action": "show_buttons", "buttons": [
-  {"label": "Yes", "value": "Yes, proceed"},
-  {"label": "No", "value": "No, cancel"}
-]}
-```
+**DO NOT use for tool execution** - The UI automatically shows permission prompts before executing tools like Bash, Edit, Write. Just execute the tool directly without asking "Should I proceed?" first - the permission system handles approval.
 
-**Example - installation:**
+**Example - multiple choice:**
 ```ui-action
 {"action": "show_buttons", "buttons": [
   {"label": "Install", "value": "Yes, install the dependencies"},

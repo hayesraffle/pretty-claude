@@ -665,6 +665,7 @@ function App() {
           { role: 'assistant', content: `**Error:** ${event.content}`, timestamp: new Date() },
         ])
       } else if (event.type === 'permission_request') {
+        console.log('%c[WS]', 'color: #f59e0b; font-weight: bold', 'permission_request received:', event)
         // Prevent duplicate handling (React strict mode can trigger twice)
         if (autoApprovedPermissionsRef.current.has(event.tool_use_id)) {
           return
@@ -1198,6 +1199,7 @@ Then refresh this page.`,
           onApprovePlan={handleApprovePlan}
           onRejectPlan={handleRejectPlan}
           planReady={planReady}
+          hasPendingPermissions={pendingPermissions.length > 0}
         />
 
         {/* Permission Prompts */}

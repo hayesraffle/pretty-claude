@@ -291,6 +291,7 @@ export default function Message({
   onApprovePlan,
   onRejectPlan,
   planReady,
+  hasPendingPermissions = false,
 }) {
   const isUser = role === 'user'
   const [copied, setCopied] = useState(false)
@@ -581,7 +582,7 @@ export default function Message({
         <ActionButtons
           buttons={actionButtons}
           onSend={onSendMessage}
-          disabled={isStreaming}
+          disabled={isStreaming || hasPendingPermissions}
         />
       )}
 

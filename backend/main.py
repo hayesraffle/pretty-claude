@@ -12,7 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 from claude_runner import ClaudeCodeRunner
+from claude_sdk_runner import ClaudeSDKRunner
 import anthropic
+
+# Use SDK runner by default, fallback to CLI runner if USE_CLI_RUNNER=1
+USE_SDK_RUNNER = os.environ.get("USE_CLI_RUNNER", "0") != "1"
 
 # Load .env file from backend directory
 load_dotenv(Path(__file__).parent / ".env")
@@ -60,6 +64,7 @@ class FileNode(BaseModel):
     name: str
     type: str  # "file" or "directory"
     path: str
+    modified: float | None = None  # Unix timestamp
     children: list["FileNode"] | None = None
 
 
@@ -71,10 +76,16 @@ def build_file_tree(dir_path: str, max_depth: int = 3, current_depth: int = 0) -
     skip_dirs = {'.git', 'node_modules', '__pycache__', '.venv', 'venv', '.next', 'dist', 'build', '.cache'}
     skip_files = {'.DS_Store', 'Thumbs.db'}
 
+    try:
+        mtime = path.stat().st_mtime
+    except (OSError, PermissionError):
+        mtime = None
+
     node = FileNode(
         name=path.name or dir_path,
         type="directory",
         path=str(path),
+        modified=mtime,
         children=[]
     )
 
@@ -95,10 +106,15 @@ def build_file_tree(dir_path: str, max_depth: int = 3, current_depth: int = 0) -
                 child = build_file_tree(str(entry), max_depth, current_depth + 1)
                 node.children.append(child)
             else:
+                try:
+                    file_mtime = entry.stat().st_mtime
+                except (OSError, PermissionError):
+                    file_mtime = None
                 node.children.append(FileNode(
                     name=entry.name,
                     type="file",
                     path=str(entry),
+                    modified=file_mtime,
                     children=None
                 ))
     except PermissionError:
@@ -613,11 +629,21 @@ async def websocket_endpoint(websocket: WebSocket):
     permission_mode = websocket.query_params.get("permissionMode", "default")
     session_id = websocket.query_params.get("sessionId")  # For resuming conversations
 
-    runner = ClaudeCodeRunner(
-        working_dir=working_dir,
-        permission_mode=permission_mode,
-        session_id=session_id if session_id else None
-    )
+    # Choose runner based on configuration
+    if USE_SDK_RUNNER:
+        print(f"[WS] Using SDK runner (permission_mode={permission_mode})")
+        runner = ClaudeSDKRunner(
+            working_dir=working_dir,
+            permission_mode=permission_mode,
+            session_id=session_id if session_id else None,
+        )
+    else:
+        print(f"[WS] Using CLI runner (permission_mode={permission_mode})")
+        runner = ClaudeCodeRunner(
+            working_dir=working_dir,
+            permission_mode=permission_mode,
+            session_id=session_id if session_id else None
+        )
     active_connections[websocket] = runner
 
     # Shared state for concurrent streaming
@@ -627,15 +653,31 @@ async def websocket_endpoint(websocket: WebSocket):
     async def stream_claude_output(user_message: str, images: list = None):
         """Stream Claude output to WebSocket."""
         nonlocal stop_requested
+        print(f"[WS] stream_claude_output starting with message: {user_message[:50]}...")
+        event_count = 0
         try:
             async for event in runner.run(user_message, images=images):
+                event_count += 1
                 if stop_requested:
+                    print(f"[WS] Stop requested, breaking after {event_count} events")
                     break
+                # Log init and permission_request events for debugging
+                if event.get("type") == "system" and event.get("subtype") == "init":
+                    print(f"[WS] SDK/CLI init: permissionMode={event.get('permissionMode')}")
+                if event.get("type") == "permission_request":
+                    print(f"[WS] Forwarding permission_request to frontend: tool={event.get('tool')}, id={event.get('tool_use_id')}")
+                if event.get("type") == "result":
+                    print(f"[WS] Result event received: {event.get('subtype')}")
                 # Attach session_id to result events for frontend persistence
                 if event.get("type") == "result" and runner.session_id:
                     event["session_id"] = runner.session_id
+                print(f"[WS] Sending event #{event_count}: {event.get('type')}")
                 await websocket.send_json(event)
+            print(f"[WS] stream_claude_output finished, sent {event_count} events")
         except Exception as e:
+            import traceback
+            print(f"[WS] stream_claude_output error: {e}")
+            print(traceback.format_exc())
             if not stop_requested:
                 await websocket.send_json({
                     "type": "system",
@@ -679,6 +721,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         interrupt_type = interrupt_data.get("type")
 
                         if interrupt_type == "stop":
+                            print("[WS] Received stop request")
                             stop_requested = True
                             await runner.stop()
                             streaming_task.cancel()
@@ -697,6 +740,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             allowed = interrupt_data.get("allowed", False)
                             print(f"[WS] Received permission_response: tool_use_id={tool_use_id}, allowed={allowed}")
                             await runner.send_permission_response(tool_use_id, allowed)
+                            print(f"[WS] permission_response handled, continuing to wait for streaming")
                         elif interrupt_type == "question_response":
                             tool_use_id = interrupt_data.get("tool_use_id")
                             answers = interrupt_data.get("answers", {})

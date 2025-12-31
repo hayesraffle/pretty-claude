@@ -51,7 +51,9 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
       setStatus('connected')
     }
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.log('%c[WS]', 'color: #ef4444; font-weight: bold', 'Connection closed, code:', event.code, 'reason:', event.reason)
+      console.trace('[WS] Close stack trace')
       setStatus('disconnected')
       setIsStreaming(false)
       setSessionInfo(null)
