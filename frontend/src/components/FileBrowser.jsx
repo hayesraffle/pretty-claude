@@ -7,7 +7,8 @@ import {
   File,
   ChevronRight,
   ChevronDown,
-  ChevronUp,
+  ArrowUp,
+  ArrowDown,
   X,
   RefreshCw,
   Home,
@@ -36,7 +37,36 @@ function getFileIcon(filename) {
   return FILE_ICONS[ext] || FILE_ICONS.default
 }
 
-function TreeNode({ node, level = 0, onSelect, selectedPath, expandedPaths, onToggleExpand }) {
+function formatDate(timestamp) {
+  if (!timestamp) return ''
+  const date = new Date(timestamp * 1000)
+  const now = new Date()
+  const isToday = date.toDateString() === now.toDateString()
+  if (isToday) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+function sortChildren(children, sortField, sortOrder) {
+  if (!children) return children
+  const sorted = [...children].sort((a, b) => {
+    // Directories always first
+    if (a.type === 'directory' && b.type !== 'directory') return -1
+    if (a.type !== 'directory' && b.type === 'directory') return 1
+
+    let cmp = 0
+    if (sortField === 'name') {
+      cmp = a.name.localeCompare(b.name)
+    } else if (sortField === 'modified') {
+      cmp = (a.modified || 0) - (b.modified || 0)
+    }
+    return sortOrder === 'asc' ? cmp : -cmp
+  })
+  return sorted
+}
+
+function TreeNode({ node, level = 0, onSelect, selectedPath, expandedPaths, onToggleExpand, sortField, sortOrder }) {
   const isSelected = selectedPath === node.path
   const isDirectory = node.type === 'directory'
   const isExpanded = expandedPaths.has(node.path)
@@ -51,6 +81,10 @@ function TreeNode({ node, level = 0, onSelect, selectedPath, expandedPaths, onTo
   const Icon = isDirectory
     ? (isExpanded ? FolderOpen : Folder)
     : getFileIcon(node.name)
+
+  const sortedChildren = isDirectory && node.children
+    ? sortChildren(node.children, sortField, sortOrder)
+    : null
 
   return (
     <div>
@@ -71,12 +105,15 @@ function TreeNode({ node, level = 0, onSelect, selectedPath, expandedPaths, onTo
           size={14}
           className={isDirectory ? 'text-indigo-500 dark:text-indigo-400' : 'text-text-muted'}
         />
-        <span className="truncate">{node.name}</span>
+        <span className="flex-1 truncate">{node.name}</span>
+        <span className="text-xs text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">
+          {formatDate(node.modified)}
+        </span>
       </button>
 
-      {isDirectory && isExpanded && node.children && (
+      {isDirectory && isExpanded && sortedChildren && (
         <div>
-          {node.children.map((child) => (
+          {sortedChildren.map((child) => (
             <TreeNode
               key={child.path}
               node={child}
@@ -85,6 +122,8 @@ function TreeNode({ node, level = 0, onSelect, selectedPath, expandedPaths, onTo
               selectedPath={selectedPath}
               expandedPaths={expandedPaths}
               onToggleExpand={onToggleExpand}
+              sortField={sortField}
+              sortOrder={sortOrder}
             />
           ))}
         </div>
@@ -103,7 +142,18 @@ export default function FileBrowser({ isOpen, onClose, onFileSelect, workingDir,
   const [isLoadingFile, setIsLoadingFile] = useState(false)
   const [error, setError] = useState(null)
   const [expandedPaths, setExpandedPaths] = useState(new Set())
-  const [browsePath, setBrowsePath] = useState(null) // Path being browsed (may differ from workingDir)
+  const [browsePath, setBrowsePath] = useState(null)
+  const [sortField, setSortField] = useState('name')
+  const [sortOrder, setSortOrder] = useState('asc')
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+    }
+  }
 
   // Fetch file tree on mount or when browsePath changes
   useEffect(() => {
@@ -133,8 +183,8 @@ export default function FileBrowser({ isOpen, onClose, onFileSelect, workingDir,
       if (!res.ok) throw new Error('Failed to load file tree')
       const tree = await res.json()
       setFileTree(tree)
-      // Don't expand folders by default - start collapsed
-      setExpandedPaths(new Set())
+      // Only expand the root folder to show its immediate children
+      setExpandedPaths(tree.path ? new Set([tree.path]) : new Set())
     } catch (err) {
       setError(err.message)
     } finally {
@@ -178,19 +228,29 @@ export default function FileBrowser({ isOpen, onClose, onFileSelect, workingDir,
     onClose()
   }
 
-  const navigateToParent = () => {
-    const currentPath = browsePath || workingDir
-    if (currentPath && currentPath !== '/') {
-      const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/'
-      setBrowsePath(parentPath)
-    }
-  }
-
   const handleToggleExpand = (path) => {
+    const isCurrentlyExpanded = expandedPaths.has(path)
+
+    // If collapsing the top-level folder, navigate up to parent
+    if (isCurrentlyExpanded && fileTree && path === fileTree.path) {
+      const parentPath = path.split('/').slice(0, -1).join('/') || '/'
+      // Select the current folder before navigating up
+      setSelectedPath(path)
+      setSelectedIsDirectory(true)
+      setFileContent(null)
+      setBrowsePath(parentPath)
+      return
+    }
+
     setExpandedPaths(prev => {
       const next = new Set(prev)
-      if (next.has(path)) {
-        next.delete(path)
+      if (isCurrentlyExpanded) {
+        // Collapse this folder and all its children
+        for (const expandedPath of prev) {
+          if (expandedPath === path || expandedPath.startsWith(path + '/')) {
+            next.delete(expandedPath)
+          }
+        }
       } else {
         next.add(path)
       }
@@ -202,51 +262,86 @@ export default function FileBrowser({ isOpen, onClose, onFileSelect, workingDir,
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-background rounded-xl shadow-2xl border border-border w-[900px] h-[600px] flex overflow-hidden">
-        {/* Left panel - Tree */}
-        <div className="w-72 border-r border-border flex flex-col">
-          <div className="px-3 py-2 border-b border-border">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Home size={14} className="text-text-muted" />
-                <span className="text-sm font-medium text-text">Files</span>
-              </div>
-              <button
-                onClick={fetchFileTree}
-                className="p-1 rounded hover:bg-surface text-text-muted hover:text-text"
-                title="Refresh"
-                disabled={isLoadingTree}
-              >
-                <RefreshCw size={14} className={isLoadingTree ? 'animate-spin' : ''} />
-              </button>
-            </div>
-            {/* Current browsing path with navigation */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={navigateToParent}
-                className="p-1 rounded hover:bg-surface text-text-muted hover:text-text flex-shrink-0"
-                title="Go to parent directory"
-              >
-                <ChevronUp size={14} />
-              </button>
-              <div
-                className="flex-1 text-xs text-text-muted bg-surface rounded px-2 py-1 truncate"
-                title={browsePath || workingDir}
-              >
-                {browsePath || workingDir || '/'}
-              </div>
-              {browsePath && browsePath !== workingDir && (
-                <button
-                  onClick={() => setBrowsePath(null)}
-                  className="p-1 rounded hover:bg-surface text-text-muted hover:text-text flex-shrink-0"
-                  title="Go back to working directory"
-                >
-                  <Home size={12} />
-                </button>
-              )}
-            </div>
+      <div className="relative bg-background rounded-xl shadow-2xl border border-border w-[900px] h-[600px] flex flex-col overflow-hidden">
+        {/* Full-width header */}
+        <div className="px-3 py-2.5 border-b border-border flex items-center gap-3">
+          {/* Breadcrumb navigation */}
+          <div className="flex-1 flex items-center gap-0.5 bg-surface rounded px-1.5 py-1 overflow-x-auto">
+            {(() => {
+              // Show selected folder path in breadcrumb, or fall back to browse/working dir
+              const currentPath = (selectedIsDirectory && selectedPath) || browsePath || workingDir || '/'
+              const segments = currentPath.split('/').filter(Boolean)
+              const breadcrumbs = [{ name: '/', path: '/' }]
+              let accumulatedPath = ''
+              segments.forEach(segment => {
+                accumulatedPath += '/' + segment
+                breadcrumbs.push({ name: segment, path: accumulatedPath })
+              })
+              return breadcrumbs.map((crumb, idx) => (
+                <div key={crumb.path} className="flex items-center flex-shrink-0">
+                  {idx > 0 && (
+                    <ChevronRight size={10} className="text-text-muted mx-0.5" />
+                  )}
+                  <button
+                    onClick={() => setBrowsePath(crumb.path)}
+                    className={`text-xs px-1.5 py-0.5 rounded hover:bg-background transition-colors
+                              ${idx === breadcrumbs.length - 1
+                                ? 'text-text font-medium'
+                                : 'text-text-muted hover:text-text'}`}
+                    title={crumb.path}
+                  >
+                    {crumb.name === '/' ? <Home size={12} /> : crumb.name}
+                  </button>
+                </div>
+              ))
+            })()}
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
+          <button
+            onClick={() => fetchFileTree(browsePath || workingDir)}
+            className="p-1.5 rounded hover:bg-surface text-text-muted hover:text-text"
+            title="Refresh"
+            disabled={isLoadingTree}
+          >
+            <RefreshCw size={14} className={isLoadingTree ? 'animate-spin' : ''} />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-surface text-text-muted hover:text-text"
+            title="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Two-column content area */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left panel - Tree */}
+          <div className="w-72 border-r border-border flex flex-col">
+            {/* Sort header */}
+            <div className="flex items-center px-2 py-1.5 border-b border-border text-xs">
+              <button
+                onClick={() => handleSort('name')}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded hover:bg-surface transition-colors
+                          ${sortField === 'name' ? 'text-text font-medium' : 'text-text-muted'}`}
+              >
+                Name
+                {sortField === 'name' && (
+                  sortOrder === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />
+                )}
+              </button>
+              <div className="flex-1" />
+              <button
+                onClick={() => handleSort('modified')}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded hover:bg-surface transition-colors
+                          ${sortField === 'modified' ? 'text-text font-medium' : 'text-text-muted'}`}
+              >
+                Modified
+                {sortField === 'modified' && (
+                  sortOrder === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />
+                )}
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
             {isLoadingTree ? (
               <div className="flex items-center justify-center h-32 text-text-muted">
                 <RefreshCw size={20} className="animate-spin" />
@@ -269,33 +364,16 @@ export default function FileBrowser({ isOpen, onClose, onFileSelect, workingDir,
                 selectedPath={selectedPath}
                 expandedPaths={expandedPaths}
                 onToggleExpand={handleToggleExpand}
+                sortField={sortField}
+                sortOrder={sortOrder}
               />
             ) : null}
-          </div>
-        </div>
-
-        {/* Right panel - Content */}
-        <div className="flex-1 flex flex-col">
-          <div className="px-4 py-2 border-b border-border flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              {selectedPath ? (
-                <>
-                  <FileCode size={14} className="text-text-muted flex-shrink-0" />
-                  <span className="text-sm text-text truncate">{selectedPath}</span>
-                </>
-              ) : (
-                <span className="text-sm text-text-muted">Select a file to view</span>
-              )}
             </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-surface text-text-muted hover:text-text flex-shrink-0"
-            >
-              <X size={16} />
-            </button>
           </div>
 
-          <div className="flex-1 overflow-auto">
+          {/* Right panel - Content */}
+          <div className="flex-1 flex flex-col">
+            <div className="flex-1 overflow-auto">
             {isLoadingFile ? (
               <div className="flex items-center justify-center h-full text-text-muted">
                 <RefreshCw size={20} className="animate-spin" />
@@ -314,9 +392,6 @@ export default function FileBrowser({ isOpen, onClose, onFileSelect, workingDir,
                 <FolderOpen size={48} className="mb-4 text-indigo-500 dark:text-indigo-400 opacity-60" />
                 <p className="text-sm font-medium text-text">{selectedPath?.split('/').pop()}</p>
                 <p className="text-xs mt-2 opacity-60">Directory selected</p>
-                <p className="text-xs mt-4 opacity-60">
-                  Click "Set as Working Directory" to work from this folder
-                </p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-text-muted">
@@ -327,25 +402,20 @@ export default function FileBrowser({ isOpen, onClose, onFileSelect, workingDir,
                 </p>
               </div>
             )}
-          </div>
-
-          {/* Footer with actions */}
-          {selectedPath && selectedIsDirectory && (
-            <div className="px-4 py-2 border-t border-border flex items-center justify-between">
-              <div className="text-xs text-text-muted">
-                Directory selected
-              </div>
-              <button
-                onClick={() => handleSetWorkingDir(selectedPath)}
-                className="px-4 py-2 text-sm rounded-lg bg-cta hover:bg-cta-hover
-                         text-cta-text transition-colors flex items-center gap-2"
-              >
-                <FolderInput size={14} />
-                Set as Working Directory
-              </button>
             </div>
-          )}
+          </div>
         </div>
+
+        {/* FAB for setting working directory */}
+        {selectedPath && selectedIsDirectory && (
+          <button
+            onClick={() => handleSetWorkingDir(selectedPath)}
+            className="absolute bottom-4 right-4 btn-cta text-sm py-2 px-4 shadow-lg"
+          >
+            <FolderInput size={14} />
+            Work in {selectedPath?.split('/').pop()}
+          </button>
+        )}
       </div>
     </div>
   )
