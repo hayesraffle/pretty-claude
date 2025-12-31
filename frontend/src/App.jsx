@@ -955,7 +955,7 @@ Then refresh this page.`,
   }
 
   const handleChangeWorkingDir = useCallback((newDir) => {
-    // Update backend
+    // Update backend and state - useWebSocket handles reconnection automatically
     fetch(`http://localhost:8000/api/cwd?path=${encodeURIComponent(newDir)}`, {
       method: 'POST',
     })
@@ -963,13 +963,10 @@ Then refresh this page.`,
       .then(data => {
         if (data.cwd) {
           setWorkingDir(data.cwd)
-          // Reconnect WebSocket with new working directory
-          disconnect()
-          setTimeout(() => connect(), 100)
         }
       })
       .catch(console.error)
-  }, [disconnect, connect])
+  }, [])
 
   const handleHistoryNavigate = useCallback((direction) => {
     setInputValue((current) => {

@@ -15,8 +15,9 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
   const workingDirRef = useRef(workingDir)
   const sessionIdRef = useRef(sessionId)
 
-  // Track previous sessionId for change detection
+  // Track previous values for change detection
   const prevSessionIdRef = useRef(sessionId)
+  const prevWorkingDirRef = useRef(workingDir)
 
   // Update refs when params change
   useEffect(() => {
@@ -162,6 +163,21 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
       }
     }
   }, [sessionId, connect])
+
+  // Reconnect when workingDir changes
+  // The CLI subprocess is started with a specific cwd, so we need a fresh session
+  useEffect(() => {
+    if (workingDir !== prevWorkingDirRef.current) {
+      prevWorkingDirRef.current = workingDir
+      // Reconnect if already connected
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        console.log('%c[WS]', 'color: #8b5cf6; font-weight: bold', 'Reconnecting with new workingDir:', workingDir)
+        wsRef.current.close()
+        wsRef.current = null
+        setTimeout(() => connect(), 100)
+      }
+    }
+  }, [workingDir, connect])
 
   const sendMessage = useCallback((content, images = []) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
