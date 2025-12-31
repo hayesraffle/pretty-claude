@@ -80,7 +80,7 @@ function App() {
   const [pendingPermissions, setPendingPermissions] = useState([]) // Track tool uses needing permission
   const [todos, setTodos] = useState([]) // Track TodoWrite tasks
   const [todoListCollapsed, setTodoListCollapsed] = useState(false)
-  const [todoListVisible, setTodoListVisible] = useState(true)
+  const [todoListVisible, setTodoListVisible] = useState(false)
   const [pendingQuestion, setPendingQuestion] = useState(null) // AskUserQuestion
   const [subAgentQuestions, setSubAgentQuestions] = useState([]) // Failed sub-agent AskUserQuestion
   const [planFile, setPlanFile] = useState(null) // Plan mode file path
@@ -355,7 +355,6 @@ function App() {
             // Handle TodoWrite tool
             if (item.name === 'TodoWrite' && item.input?.todos) {
               setTodos(item.input.todos)
-              setTodoListVisible(true)
             }
 
             // Handle AskUserQuestion tool
