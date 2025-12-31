@@ -78,6 +78,7 @@ function App() {
   const [showCodePreview, setShowCodePreview] = useState(false)
   const [workingDir, setWorkingDir] = useState('')
   const [pendingDirChange, setPendingDirChange] = useState(null) // Directory to change to (shows confirmation)
+  const [pendingDeleteId, setPendingDeleteId] = useState(null) // Conversation ID to delete (shows confirmation)
   const [textQuestionAnswers, setTextQuestionAnswers] = useState(null)
   const [showCommitPrompt, setShowCommitPrompt] = useState(false)
   const [pendingApprovalMessage, setPendingApprovalMessage] = useState(null) // Queue message for after reconnect
@@ -1054,6 +1055,32 @@ Then refresh this page.`,
     hasSubAgentQuestionsRef.current = false
   }
 
+  const handleDeleteConversation = useCallback((id) => {
+    // If deleting current conversation, show confirmation
+    if (id === currentId) {
+      setPendingDeleteId(id)
+      return
+    }
+    // Not current conversation, delete immediately
+    deleteConversation(id)
+  }, [currentId, deleteConversation])
+
+  const confirmDelete = useCallback(() => {
+    if (pendingDeleteId) {
+      deleteConversation(pendingDeleteId)
+      // Clear UI to zero state
+      setMessages([])
+      setTodos([])
+      setSubAgentQuestions([])
+      hasSubAgentQuestionsRef.current = false
+      setPendingDeleteId(null)
+    }
+  }, [pendingDeleteId, deleteConversation])
+
+  const cancelDelete = useCallback(() => {
+    setPendingDeleteId(null)
+  }, [])
+
   return (
     <div className="h-screen flex bg-background overflow-hidden">
       {/* Sidebar */}
@@ -1062,7 +1089,7 @@ Then refresh this page.`,
         currentId={currentId}
         onSelect={handleSelectConversation}
         onNew={handleNewConversation}
-        onDelete={deleteConversation}
+        onDelete={handleDeleteConversation}
         isCollapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
@@ -1301,6 +1328,32 @@ Then refresh this page.`,
                 className="px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
               >
                 Change Directory
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Conversation Confirmation Dialog */}
+      {pendingDeleteId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-medium text-text mb-2">Delete Conversation?</h3>
+            <p className="text-sm text-text-muted mb-4">
+              This will permanently delete the current conversation. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={cancelDelete}
+                className="px-4 py-2 text-sm text-text-muted hover:text-text transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 text-sm bg-error text-white rounded-lg hover:bg-error/90 transition-colors"
+              >
+                Delete
               </button>
             </div>
           </div>
