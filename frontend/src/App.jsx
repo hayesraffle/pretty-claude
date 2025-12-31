@@ -85,6 +85,7 @@ function App() {
   const [subAgentQuestions, setSubAgentQuestions] = useState([]) // Failed sub-agent AskUserQuestion
   const [planFile, setPlanFile] = useState(null) // Plan mode file path
   const [planReady, setPlanReady] = useState(false) // Plan is ready for approval
+  const [prePlanPermissionMode, setPrePlanPermissionMode] = useState(null) // Mode before entering plan mode
   const [planContent, setPlanContent] = useState(null) // Plan markdown content from ExitPlanMode
   const [planToolUseId, setPlanToolUseId] = useState(null) // ExitPlanMode tool_use_id for permission response
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
@@ -122,9 +123,13 @@ function App() {
 
   // Combined handler that updates both settings and notifies backend
   const setPermissionMode = useCallback((mode) => {
+    // Save current mode before switching to plan mode (so we can restore it later)
+    if (mode === 'plan' && permissionMode !== 'plan') {
+      setPrePlanPermissionMode(permissionMode)
+    }
     setPermissionModeSettings(mode)
     setPermissionModeWs(mode)
-  }, [setPermissionModeSettings, setPermissionModeWs])
+  }, [setPermissionModeSettings, setPermissionModeWs, permissionMode])
 
   // Fetch initial working directory from backend
   useEffect(() => {
@@ -861,8 +866,9 @@ Then refresh this page.`,
     setPlanToolUseId(null)
     setPlanFile(null)
     setPlanReady(false)
-    // Switch to acceptEdits mode for execution (allows edits, still prompts for bash)
-    setPermissionMode('acceptEdits')
+    // Restore the permission mode from before entering plan mode
+    setPermissionMode(prePlanPermissionMode || 'acceptEdits')
+    setPrePlanPermissionMode(null)
   }
 
   const handleRejectPlan = (overrideId) => {
