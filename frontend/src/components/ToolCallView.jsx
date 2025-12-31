@@ -134,7 +134,7 @@ function ReadRenderer({ input, result }) {
       </div>
       {content && (
         isMarkdown ? (
-          <div className="border-l-2 border-accent/50 pl-3 ml-1.5 md-content">
+          <div className="border-l-2 border-accent/50 pl-4 ml-1.5 md-content">
             <MarkdownRenderer content={content} />
           </div>
         ) : (
@@ -180,7 +180,7 @@ function EditRenderer({ input }) {
             </span>
             <div className="flex-1 opacity-50">
               {isMarkdown ? (
-                <div className="border-l-2 border-error/50 pl-3 ml-1.5 md-content">
+                <div className="border-l-2 border-error/50 pl-4 ml-1.5 md-content">
                   <MarkdownRenderer content={oldString} />
                 </div>
               ) : (
@@ -198,7 +198,7 @@ function EditRenderer({ input }) {
             </span>
             <div className="flex-1">
               {isMarkdown ? (
-                <div className="border-l-2 border-success/50 pl-3 ml-1.5 md-content">
+                <div className="border-l-2 border-success/50 pl-4 ml-1.5 md-content">
                   <MarkdownRenderer content={newString} />
                 </div>
               ) : (
@@ -229,7 +229,7 @@ function WriteRenderer({ input }) {
       </div>
       {content && (
         isMarkdown ? (
-          <div className="border-l-2 border-accent/50 pl-3 ml-1.5 md-content">
+          <div className="border-l-2 border-accent/50 pl-4 ml-1.5 md-content">
             <MarkdownRenderer content={content} />
           </div>
         ) : (

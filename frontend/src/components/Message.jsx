@@ -603,7 +603,7 @@ export default function Message({
       {/* Plan content - shown when there's plan content in this message */}
       {planContent && (
         <div className="mt-6">
-          <div className="mb-4 border-l-2 border-accent/50 pl-3 ml-1.5 md-content">
+          <div className="mb-4 border-l-2 border-accent/50 pl-4 ml-1.5 md-content">
             <MarkdownRenderer content={planContent} />
           </div>
           {/* Approval buttons - show when plan content exists and this is last message */}
@@ -611,7 +611,7 @@ export default function Message({
             <div className="flex items-center gap-3">
               <button
                 onClick={() => onRejectPlan(pendingExitPlanModeId)}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full
                            bg-background border border-border text-text-muted hover:text-text
                            hover:border-text/20 transition-colors"
               >
@@ -620,9 +620,8 @@ export default function Message({
               </button>
               <button
                 onClick={() => onApprovePlan(pendingExitPlanModeId)}
-                className="flex items-center gap-1.5 px-5 py-2 text-sm font-medium rounded-lg
-                           bg-success text-white hover:bg-success/90 transition-colors
-                           shadow-sm hover:shadow-md"
+                className="flex items-center gap-1.5 px-5 py-2 text-sm font-medium rounded-full
+                           bg-success/10 text-success hover:bg-success/15 transition-colors"
               >
                 <CheckCircle size={16} />
                 Approve & Execute

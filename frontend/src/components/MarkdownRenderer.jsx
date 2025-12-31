@@ -76,9 +76,18 @@ const baseMarkdownComponents = {
   ol: ({ children }) => (
     <ol className="my-3 ml-4 list-decimal space-y-1">{children}</ol>
   ),
-  li: ({ children }) => (
-    <li className="leading-relaxed">{children}</li>
-  ),
+  li: ({ children }) => {
+    // Check if content starts with a checkmark - hide bullet if so
+    const text = typeof children === 'string'
+      ? children
+      : Array.isArray(children)
+        ? children.map(c => typeof c === 'string' ? c : '').join('')
+        : ''
+    const hasCheckmark = /^[✓✔☑︎●•]/.test(text.trim())
+    return (
+      <li className={`leading-relaxed ${hasCheckmark ? 'list-none -ml-4' : ''}`}>{children}</li>
+    )
+  },
 
   // Links
   a: ({ href, children }) => (
