@@ -69,8 +69,37 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
       try {
         const data = JSON.parse(event.data)
 
-        // Debug logging - always log events to console for debugging
-        console.log('%c[WS]', 'color: #8b5cf6; font-weight: bold', data.type, data.subtype || '', data)
+        // Debug logging - summarize events for readability
+        const logEvent = () => {
+          const style = 'color: #8b5cf6; font-weight: bold'
+          if (data.type === 'stream_event') {
+            // Skip noisy stream events, or log a summary
+            return
+          } else if (data.type === 'assistant') {
+            const content = data.message?.content || []
+            const summary = content.map(c => {
+              if (c.type === 'text') return `text(${c.text?.length || 0} chars)`
+              if (c.type === 'tool_use') return `tool:${c.name}`
+              if (c.type === 'thinking') return 'thinking'
+              return c.type
+            }).join(', ')
+            console.log('%c[WS]', style, 'assistant', summary || '(empty)')
+          } else if (data.type === 'user') {
+            const content = data.message?.content || []
+            const summary = content.map(c => {
+              if (c.type === 'tool_result') return `result:${c.tool_use_id?.slice(0,8)}`
+              return c.type
+            }).join(', ')
+            console.log('%c[WS]', style, 'user', summary || '(empty)')
+          } else if (data.type === 'result') {
+            console.log('%c[WS]', style, 'result', data.subtype || 'success', data.session_id ? `session:${data.session_id.slice(0,8)}` : '')
+          } else if (data.type === 'system') {
+            console.log('%c[WS]', style, 'system', data.subtype, data.session_id ? `session:${data.session_id.slice(0,8)}` : '')
+          } else {
+            console.log('%c[WS]', style, data.type, data.subtype || '', data)
+          }
+        }
+        logEvent()
         setLastEventTime(Date.now())
 
         // Handle streaming state based on event types

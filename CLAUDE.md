@@ -111,3 +111,41 @@ backend/
 - **Typography:** 16px body (Inter), 14px code (JetBrains Mono)
 - **Dark mode:** Uses `.dark` class on `<html>` element
 - **Input style:** Google AI mode inspired - rounded pill with floating mode indicator
+
+## IMPORTANT: UI Action Buttons
+
+**ALWAYS output a `ui-action` code block when asking questions that have predictable answers.** The frontend renders these as clickable buttons. This is required for good UX.
+
+**Format:**
+```ui-action
+{"action": "show_buttons", "buttons": [
+  {"label": "Button Text", "value": "Text sent when clicked"}
+]}
+```
+
+**MUST use for:**
+- Yes/no confirmations ("Should I proceed?", "Would you like me to...?")
+- Approval requests ("This requires your approval")
+- Multiple choice questions with 2-4 clear options
+- Any question expecting a short, predictable response
+
+**Example - asking to proceed:**
+```ui-action
+{"action": "show_buttons", "buttons": [
+  {"label": "Yes", "value": "Yes, proceed"},
+  {"label": "No", "value": "No, cancel"}
+]}
+```
+
+**Example - installation:**
+```ui-action
+{"action": "show_buttons", "buttons": [
+  {"label": "Install", "value": "Yes, install the dependencies"},
+  {"label": "Skip", "value": "Skip for now"}
+]}
+```
+
+**After completing file changes**, output this to show a commit button:
+```ui-action
+{"action": "show_commit"}
+```

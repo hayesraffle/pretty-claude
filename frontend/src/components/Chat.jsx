@@ -65,7 +65,7 @@ export default function Chat({
   initialGitState,
   onCommitDismiss,
   onCelebrate,
-  onSendMessage, // For asking Claude to help with git errors
+  onSendMessage,
   onApprovePlan,
   onRejectPlan,
   planReady,
@@ -196,6 +196,7 @@ export default function Chat({
                 onCommitDismiss={onCommitDismiss}
                 onCelebrate={onCelebrate}
                 onAskClaude={onSendMessage}
+                onSendMessage={onSendMessage}
                 onApprovePlan={onApprovePlan}
                 onRejectPlan={onRejectPlan}
                 planReady={planReady}

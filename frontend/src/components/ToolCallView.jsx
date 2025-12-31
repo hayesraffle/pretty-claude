@@ -423,7 +423,7 @@ function formatElapsed(seconds) {
 }
 
 // Main ToolCallView component
-export default function ToolCallView({ toolUse, toolResult, onCancel, onApprovePlan, onRejectPlan, planReady }) {
+export default function ToolCallView({ toolUse, toolResult, onCancel }) {
   const toolName = toolUse?.name || 'Unknown'
   // Auto-expand ExitPlanMode to show plan content
   const [isExpanded, setIsExpanded] = useState(toolName === 'ExitPlanMode')

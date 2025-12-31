@@ -17,6 +17,7 @@ import { useCommandHistory } from './hooks/useCommandHistory'
 import { useConversationStorage } from './hooks/useConversationStorage'
 import { useCodeDisplayMode } from './contexts/CodeDisplayContext'
 import { useSettings } from './contexts/SettingsContext'
+import { parseUIActions } from './utils/uiActions'
 
 // Tools that are considered safe (read-only or low-risk)
 const SAFE_TOOLS = ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Task', 'TodoWrite', 'AskUserQuestion']
@@ -283,6 +284,25 @@ function App() {
     return null
   }, [])
 
+  // Helper to extract the last TodoWrite todos from loaded messages
+  const extractTodosFromMessages = useCallback((loadedMessages) => {
+    let lastTodos = null
+    for (const msg of loadedMessages) {
+      if (msg.events) {
+        for (const event of msg.events) {
+          if (event.type === 'assistant' && event.message?.content) {
+            for (const item of event.message.content) {
+              if (item.type === 'tool_use' && item.name === 'TodoWrite' && item.input?.todos) {
+                lastTodos = item.input.todos
+              }
+            }
+          }
+        }
+      }
+    }
+    return lastTodos
+  }, [])
+
   // Helper to process loaded messages and re-parse questions from text
   const processLoadedMessages = useCallback((loadedMessages) => {
     return loadedMessages.map(m => {
@@ -312,10 +332,12 @@ function App() {
       loadConversation(currentId).then(loaded => {
         if (loaded?.messages) {
           setMessages(processLoadedMessages(loaded.messages))
+          const todos = extractTodosFromMessages(loaded.messages)
+          if (todos) setTodos(todos)
         }
       })
     }
-  }, [currentId, messages.length, loadConversation, processLoadedMessages])
+  }, [currentId, messages.length, loadConversation, processLoadedMessages, extractTodosFromMessages])
 
   // Handle browser back/forward navigation
   useEffect(() => {
@@ -326,16 +348,19 @@ function App() {
         loadConversation(urlId).then(loaded => {
           if (loaded?.messages) {
             setMessages(processLoadedMessages(loaded.messages))
+            const todos = extractTodosFromMessages(loaded.messages)
+            if (todos) setTodos(todos)
           }
         })
       } else if (!urlId) {
         setMessages([])
+        setTodos([])
         newConversation()
       }
     }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [currentId, loadConversation, newConversation, processLoadedMessages])
+  }, [currentId, loadConversation, newConversation, processLoadedMessages, extractTodosFromMessages])
 
   // Handle incoming WebSocket events (new JSON streaming format)
   useEffect(() => {
@@ -507,8 +532,6 @@ function App() {
         // Also skip if we have unanswered sub-agent questions (to prevent dual display)
         // Use both state and ref to catch sync timing issues
         const hasUnansweredSubAgentQuestions = subAgentQuestions.some(q => !q.answered) || hasSubAgentQuestionsRef.current
-        // Don't show commit prompt during plan mode - user should approve/reject plan first
-        let shouldCelebrate = !pendingQuestion && !hasUnansweredSubAgentQuestions && !planReady
 
         if (!pendingQuestion && !hasUnansweredSubAgentQuestions) {
           setMessages((current) => {
@@ -516,7 +539,6 @@ function App() {
             if (lastMsg?.role === 'assistant' && lastMsg?.content) {
               const parsedQuestions = parseQuestionsFromText(lastMsg.content)
               if (parsedQuestions) {
-                shouldCelebrate = false // Don't celebrate if there are questions
                 // Store questions in the message itself for inline rendering and persistence
                 const updated = [...current]
                 updated[updated.length - 1] = {
@@ -532,10 +554,31 @@ function App() {
           })
         }
 
-        // Show git commit prompt on successful completion (no pending questions or errors)
-        if (shouldCelebrate) {
-          setShowCommitPrompt(true)
-        }
+        // Parse UI actions from message content (only show commit if Claude explicitly requests)
+        setMessages((current) => {
+          const lastMsg = current[current.length - 1]
+          if (lastMsg?.role === 'assistant' && lastMsg?.events) {
+            // Extract all text content from events
+            let fullText = ''
+            for (const evt of lastMsg.events) {
+              if (evt.type === 'assistant') {
+                const content = evt.message?.content || []
+                for (const item of content) {
+                  if (item.type === 'text') {
+                    fullText += item.text + '\n'
+                  }
+                }
+              }
+            }
+            // Parse UI actions
+            const { actions } = parseUIActions(fullText)
+            // Handle show_commit action (only if not in plan mode)
+            if (!planReady && actions.some(a => a.action === 'show_commit')) {
+              setShowCommitPrompt(true)
+            }
+          }
+          return current
+        })
 
         // Auto-save using Claude's session_id as the conversation ID
         // This ensures URL and storage match the Claude CLI session
@@ -940,6 +983,8 @@ Then refresh this page.`,
     const loaded = await loadConversation(id)
     if (loaded?.messages) {
       setMessages(processLoadedMessages(loaded.messages))
+      const todos = extractTodosFromMessages(loaded.messages)
+      setTodos(todos || [])
     }
   }
 
@@ -951,6 +996,7 @@ Then refresh this page.`,
     // Clear state and start fresh
     newConversation()
     setMessages([])
+    setTodos([])
     setSubAgentQuestions([])
     hasSubAgentQuestionsRef.current = false
   }

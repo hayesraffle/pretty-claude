@@ -5,6 +5,8 @@ import ToolCallView from './ToolCallView'
 import TypingIndicator from './TypingIndicator'
 import QuestionPrompt from './QuestionPrompt'
 import GitActionBar from './GitActionBar'
+import ActionButtons from './ActionButtons'
+import { stripUIActions, parseUIActions, extractButtons } from '../utils/uiActions'
 
 // Context for controlling collapse state of nested blocks
 export const CollapseContext = createContext({ allCollapsed: false })
@@ -70,7 +72,7 @@ function filterPlanTools(tools) {
 }
 
 // Grouped tool calls (collapsed by default, but single tools render directly)
-function ToolCallsGroup({ tools, explorationContent, onApprovePlan, onRejectPlan, planReady }) {
+function ToolCallsGroup({ tools, explorationContent }) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Filter out plan-related tools
@@ -88,9 +90,6 @@ function ToolCallsGroup({ tools, explorationContent, onApprovePlan, onRejectPlan
       <ToolCallView
         toolUse={{ name: tool.name, input: tool.input }}
         toolResult={tool.result}
-        onApprovePlan={onApprovePlan}
-        onRejectPlan={onRejectPlan}
-        planReady={planReady}
       />
     )
   }
@@ -137,9 +136,6 @@ function ToolCallsGroup({ tools, explorationContent, onApprovePlan, onRejectPlan
               key={tool.id}
               toolUse={{ name: tool.name, input: tool.input }}
               toolResult={tool.result}
-              onApprovePlan={onApprovePlan}
-              onRejectPlan={onRejectPlan}
-              planReady={planReady}
             />
           ))}
         </div>
@@ -180,7 +176,11 @@ function parseMessageBlocks(events) {
       const content = event.message?.content || []
       for (const item of content) {
         if (item.type === 'text') {
-          rawBlocks.push({ type: 'text', content: item.text })
+          // Strip UI action blocks from displayed text
+          const cleanText = stripUIActions(item.text)
+          if (cleanText) {
+            rawBlocks.push({ type: 'text', content: cleanText })
+          }
         } else if (item.type === 'thinking') {
           rawBlocks.push({ type: 'thinking', content: item.thinking })
         } else if (item.type === 'tool_use') {
@@ -316,6 +316,7 @@ export default function Message({
   onCommitDismiss,
   onCelebrate,
   onAskClaude,
+  onSendMessage,
   onApprovePlan,
   onRejectPlan,
   planReady,
@@ -331,12 +332,32 @@ export default function Message({
   // Parse events into ordered blocks (text, thinking, tools)
   const blocks = useMemo(() => parseMessageBlocks(events), [events])
 
+  // Extract UI action buttons from message text
+  const actionButtons = useMemo(() => {
+    if (!events) return []
+    let fullText = ''
+    for (const evt of events) {
+      if (evt.type === 'assistant') {
+        const content = evt.message?.content || []
+        for (const item of content) {
+          if (item.type === 'text') {
+            fullText += item.text + '\n'
+          }
+        }
+      }
+    }
+    const { actions } = parseUIActions(fullText)
+    return extractButtons(actions)
+  }, [events])
+
   // Extract plan content from Write tools to plan files
   const planContent = useMemo(() => {
     for (const block of blocks) {
-      if (block.type === 'tools') {
+      // Check both 'tools' and 'tools-with-exploration' block types
+      if (block.type === 'tools' || block.type === 'tools-with-exploration') {
         for (const tool of block.tools) {
           if (tool.name === 'Write' && isPlanFile(tool.input?.file_path)) {
+            console.log('[Plan] Found plan content in Write tool:', tool.input?.file_path)
             return tool.input?.content
           }
         }
@@ -355,25 +376,48 @@ export default function Message({
         const content = event.message?.content || []
         for (const item of content) {
           if (item.type === 'tool_use' && item.name === 'ExitPlanMode') {
+            console.log('[Plan] Found ExitPlanMode tool_use:', item.id)
             exitPlanModeIds.add(item.id)
           }
         }
       }
     }
-    if (exitPlanModeIds.size === 0) return null
+    if (exitPlanModeIds.size === 0) {
+      // Debug: log all tool names found
+      const toolNames = []
+      for (const event of events) {
+        if (event.type === 'assistant') {
+          const content = event.message?.content || []
+          for (const item of content) {
+            if (item.type === 'tool_use') {
+              toolNames.push(item.name)
+            }
+          }
+        }
+      }
+      if (toolNames.length > 0) {
+        console.log('[Plan] No ExitPlanMode found. Tools in message:', toolNames)
+      }
+      return null
+    }
     // Check if any have results
     for (const event of events) {
       if (event.type === 'user') {
         const content = event.message?.content || []
         for (const item of content) {
           if (item.type === 'tool_result' && exitPlanModeIds.has(item.tool_use_id)) {
+            console.log('[Plan] ExitPlanMode has result, removing:', item.tool_use_id)
             exitPlanModeIds.delete(item.tool_use_id)
           }
         }
       }
     }
     // Return the first pending ID (there should only be one)
-    return exitPlanModeIds.size > 0 ? [...exitPlanModeIds][0] : null
+    const pendingId = exitPlanModeIds.size > 0 ? [...exitPlanModeIds][0] : null
+    if (pendingId) {
+      console.log('[Plan] Pending ExitPlanMode:', pendingId)
+    }
+    return pendingId
   }, [events])
 
   const hasPendingExitPlanMode = pendingExitPlanModeId !== null
@@ -565,9 +609,9 @@ export default function Message({
           } else if (block.type === 'thinking') {
             return <ThinkingBlock key={i} content={block.content} />
           } else if (block.type === 'tools') {
-            return <ToolCallsGroup key={i} tools={block.tools} onApprovePlan={onApprovePlan} onRejectPlan={onRejectPlan} planReady={planReady} />
+            return <ToolCallsGroup key={i} tools={block.tools} />
           } else if (block.type === 'tools-with-exploration') {
-            return <ToolCallsGroup key={i} tools={block.tools} explorationContent={block.exploration} onApprovePlan={onApprovePlan} onRejectPlan={onRejectPlan} planReady={planReady} />
+            return <ToolCallsGroup key={i} tools={block.tools} explorationContent={block.exploration} />
           }
           return null
         })}
@@ -597,8 +641,8 @@ export default function Message({
           <div className="mb-4 border-l-2 border-accent/50 pl-4 ml-1.5 md-content">
             <MarkdownRenderer content={planContent} />
           </div>
-          {/* Approval buttons - show when plan content exists and this is last message */}
-          {isLast && onApprovePlan && onRejectPlan && (
+          {/* Approval buttons - show when plan is ready (from App.jsx state) and this is the last message */}
+          {isLast && planReady && onApprovePlan && onRejectPlan && (
             <div className="flex items-center gap-3">
               <button
                 onClick={() => {
@@ -623,6 +667,15 @@ export default function Message({
             </div>
           )}
         </div>
+      )}
+
+      {/* Action buttons from ui-action blocks - shown on last message only */}
+      {isLast && actionButtons.length > 0 && (
+        <ActionButtons
+          buttons={actionButtons}
+          onSend={onSendMessage}
+          disabled={isStreaming}
+        />
       )}
 
       {/* Git action bar - shown after task completion, but NOT during plan mode */}
