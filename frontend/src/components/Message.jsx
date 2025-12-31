@@ -606,8 +606,8 @@ export default function Message({
           <div className="mb-4 border-l-2 border-accent/50 pl-3 ml-1.5 md-content">
             <MarkdownRenderer content={planContent} />
           </div>
-          {/* Approval buttons - only when plan is pending */}
-          {isLast && (planReady || hasPendingExitPlanMode) && onApprovePlan && onRejectPlan && (
+          {/* Approval buttons - show when plan content exists and this is last message */}
+          {isLast && onApprovePlan && onRejectPlan && (
             <div className="flex items-center gap-3">
               <button
                 onClick={() => onRejectPlan(pendingExitPlanModeId)}
