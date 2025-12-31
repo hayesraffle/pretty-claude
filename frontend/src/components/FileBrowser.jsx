@@ -410,7 +410,10 @@ export default function FileBrowser({ isOpen, onClose, onFileSelect, workingDir,
         {selectedPath && selectedIsDirectory && (
           <button
             onClick={() => handleSetWorkingDir(selectedPath)}
-            className="absolute bottom-4 right-4 btn-cta text-sm py-2 px-4 shadow-lg"
+            className="absolute bottom-4 right-4 inline-flex items-center gap-2 text-sm py-2 px-4
+                     rounded-full shadow-lg transition-all
+                     bg-indigo-500/60 hover:bg-indigo-500/80 text-white
+                     dark:bg-indigo-400/60 dark:hover:bg-indigo-400/80"
           >
             <FolderInput size={14} />
             Work in {selectedPath?.split('/').pop()}
