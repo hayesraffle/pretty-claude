@@ -115,32 +115,6 @@ backend/
 - **Dark mode:** Uses `.dark` class on `<html>` element
 - **Input style:** Google AI mode inspired - rounded pill with floating mode indicator
 
-## IMPORTANT: UI Action Buttons
+## Note on UI Instructions
 
-**ALWAYS output a `ui-action` code block when asking questions that have predictable answers.** The frontend renders these as clickable buttons. This is required for good UX.
-
-**Format:**
-```ui-action
-{"action": "show_buttons", "buttons": [
-  {"label": "Button Text", "value": "Text sent when clicked"}
-]}
-```
-
-**MUST use for:**
-- Multiple choice questions with 2-4 clear options
-- Any question expecting a short, predictable response
-
-**DO NOT use for tool execution** - The UI automatically shows permission prompts before executing tools like Bash, Edit, Write. Just execute the tool directly without asking "Should I proceed?" first - the permission system handles approval.
-
-**Example - multiple choice:**
-```ui-action
-{"action": "show_buttons", "buttons": [
-  {"label": "Install", "value": "Yes, install the dependencies"},
-  {"label": "Skip", "value": "Skip for now"}
-]}
-```
-
-**After completing file changes**, output this to show a commit button:
-```ui-action
-{"action": "show_commit"}
-```
+UI action buttons and other Pretty Code-specific instructions are injected via the SDK system prompt (see `claude_sdk_runner.py`). They don't need to be in this file.
