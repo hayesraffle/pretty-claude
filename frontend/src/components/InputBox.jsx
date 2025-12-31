@@ -246,7 +246,7 @@ function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNav
               <button
                 type="button"
                 onClick={onToggleTodoList}
-                className="hover:text-text transition-colors"
+                className="cursor-pointer hover:text-text transition-colors"
               >
                 <TaskProgress todos={todos} isBlocked={isBlocked} />
               </button>
