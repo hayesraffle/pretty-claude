@@ -1128,3 +1128,9 @@ code ::selection,
   padding-bottom: 0;
   line-height: 1.1;
 }
+
+/* Classic mode ASCII art - match row height to glyph height */
+.classic-ascii .table-row {
+  height: 1.1em;
+  line-height: 1.1;
+}

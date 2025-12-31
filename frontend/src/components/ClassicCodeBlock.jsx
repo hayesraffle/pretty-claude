@@ -36,9 +36,9 @@ export default function ClassicCodeBlock({ code, language = 'javascript', isColl
       <div
         className={`overflow-hidden transition-all duration-200 ${
           isCollapsed ? 'max-h-[240px]' : 'max-h-none'
-        }`}
+        } ${isAsciiArt ? 'classic-ascii' : ''}`}
       >
-        <pre className={`p-4 overflow-x-auto text-[13px] m-0 font-mono opacity-50 ${isAsciiArt ? 'leading-tight' : 'leading-[20px]'}`}>
+        <pre className={`p-4 overflow-x-auto text-[13px] m-0 font-mono opacity-50 ${isAsciiArt ? 'leading-none' : 'leading-[20px]'}`}>
           {lines.map((line, i) => (
             <div key={i} className="table-row">
               <span className="table-cell pr-4 text-text-muted select-none text-right w-8 opacity-50 text-[12px]">
@@ -56,9 +56,9 @@ export default function ClassicCodeBlock({ code, language = 'javascript', isColl
     <div
       className={`overflow-hidden transition-all duration-200 ${
         isCollapsed ? 'max-h-[240px]' : 'max-h-none'
-      }`}
+      } ${isAsciiArt ? 'classic-ascii' : ''}`}
     >
-      <pre className={`p-4 overflow-x-auto text-[13px] m-0 font-mono ${isAsciiArt ? 'leading-tight' : 'leading-[20px]'}`}>
+      <pre className={`p-4 overflow-x-auto text-[13px] m-0 font-mono ${isAsciiArt ? 'leading-none' : 'leading-[20px]'}`}>
         {tokens.map((line, i) => (
           <div key={i} className="table-row">
             <span className="table-cell pr-4 text-text-muted select-none text-right w-8 opacity-50 text-[12px]">
