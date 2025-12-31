@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Pretty Code - App Launcher
+# This script is run when the .app is opened
+
+# Get the directory where the .app bundle lives (two levels up from MacOS)
+APP_DIR="$(cd "$(dirname "$0")/../../../" && pwd)"
+
+# Run the main start script in a new Terminal window
+osascript <<EOF
+tell application "Terminal"
+    activate
+    do script "cd \"$APP_DIR\" && ./start.command"
+end tell
+EOF
