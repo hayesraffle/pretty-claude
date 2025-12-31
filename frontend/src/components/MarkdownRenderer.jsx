@@ -77,13 +77,14 @@ const baseMarkdownComponents = {
     <ol className="my-3 ml-4 list-decimal space-y-1">{children}</ol>
   ),
   li: ({ children }) => {
-    // Check if content starts with a checkmark - hide bullet if so
+    // Check if content starts with a checkmark emoji - hide bullet if so
     const text = typeof children === 'string'
       ? children
       : Array.isArray(children)
         ? children.map(c => typeof c === 'string' ? c : '').join('')
         : ''
-    const hasCheckmark = /^[✓✔☑︎●•]/.test(text.trim())
+    // Include common checkmark/status emojis: ✅❌✓✔☑︎●•
+    const hasCheckmark = /^[✓✔☑︎●•✅❌⚠️🔴🟡🟢⚪]/.test(text.trim())
     return (
       <li className={`leading-relaxed ${hasCheckmark ? 'list-none -ml-4' : ''}`}>{children}</li>
     )
@@ -183,12 +184,35 @@ const markdownComponents = {
   code: CodeRenderer,
 }
 
+// Preprocess content to convert inline emoji-prefixed items to list items
+// e.g., "✅ Item one ✅ Item two" → "- ✅ Item one\n- ✅ Item two"
+function preprocessContent(content) {
+  if (!content) return content
+
+  // Pattern: emoji followed by text, repeated on same line
+  // Only apply to lines that have 2+ emoji-prefixed items
+  const emojiPattern = /([✅❌✓✔☑︎⚠️🔴🟡🟢⚪])\s+([^✅❌✓✔☑︎⚠️🔴🟡🟢⚪\n]+)/g
+
+  return content.split('\n').map(line => {
+    // Count emoji occurrences in line
+    const matches = [...line.matchAll(emojiPattern)]
+    if (matches.length >= 2) {
+      // Convert to list items
+      return matches.map(m => `- ${m[1]} ${m[2].trim()}`).join('\n')
+    }
+    return line
+  }).join('\n')
+}
+
 export default function MarkdownRenderer({ content }) {
   // Track collapsed sections by ID
   const [collapsedSections, setCollapsedSections] = useState(new Set())
 
+  // Preprocess content to fix inline emoji lists
+  const processedContent = useMemo(() => preprocessContent(content), [content])
+
   // Parse markdown into sections
-  const sections = useMemo(() => parseMarkdownSections(content), [content])
+  const sections = useMemo(() => parseMarkdownSections(processedContent), [processedContent])
 
   // Check if content has any h2/h3/h4 headings worth collapsing
   const hasCollapsibleHeadings = sections.some(s => s.level >= 2 && s.level <= 4)
@@ -210,7 +234,7 @@ export default function MarkdownRenderer({ content }) {
   if (!hasCollapsibleHeadings) {
     return (
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-        {content}
+        {processedContent}
       </ReactMarkdown>
     )
   }

@@ -35,9 +35,11 @@ export function parseMarkdownSections(markdown) {
 
       // Start new section
       const level = headingMatch[1].length
+      // Strip ** bold markers from heading text since we render as plain text
+      const headingText = headingMatch[2].trim().replace(/\*\*([^*]+)\*\*/g, '$1')
       currentSection = {
         level,
-        heading: headingMatch[2].trim(),
+        heading: headingText,
         content: '',
         id: `section-${sectionId++}`
       }
