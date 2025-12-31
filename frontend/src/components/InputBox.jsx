@@ -238,13 +238,6 @@ function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNav
           )}
         </div>
 
-        {/* Task progress - shown when there are active todos */}
-        {todos && todos.length > 0 && (
-          <div className="mt-2 px-4">
-            <TaskProgress todos={todos} isBlocked={isBlocked} />
-          </div>
-        )}
-
         {/* Status bar - aligned with input text */}
         <div className="flex items-center justify-between mt-2 px-4 text-xs text-text-muted">
           <div className="flex items-center gap-2">
@@ -304,6 +297,10 @@ function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNav
                 <Folder size={10} className="flex-shrink-0" />
                 <span className="truncate">{workingDir.split('/').pop() || workingDir}</span>
               </button>
+            )}
+            {/* Task progress */}
+            {todos && todos.length > 0 && (
+              <TaskProgress todos={todos} isBlocked={isBlocked} />
             )}
           </div>
           <div className="flex items-center gap-3 opacity-50 text-[11px]">
