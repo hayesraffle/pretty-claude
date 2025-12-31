@@ -18,6 +18,7 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
   // Track previous values for change detection
   const prevSessionIdRef = useRef(sessionId)
   const prevWorkingDirRef = useRef(workingDir)
+  const prevPermissionModeRef = useRef(permissionMode)
 
   // Update refs when params change
   useEffect(() => {
@@ -178,6 +179,21 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
       }
     }
   }, [workingDir, connect])
+
+  // Reconnect when permissionMode changes
+  // The CLI subprocess is started with a specific permission mode, so we need a fresh session
+  useEffect(() => {
+    if (permissionMode !== prevPermissionModeRef.current) {
+      prevPermissionModeRef.current = permissionMode
+      // Reconnect if already connected
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        console.log('%c[WS]', 'color: #8b5cf6; font-weight: bold', 'Reconnecting with new permissionMode:', permissionMode)
+        wsRef.current.close()
+        wsRef.current = null
+        setTimeout(() => connect(), 100)
+      }
+    }
+  }, [permissionMode, connect])
 
   const sendMessage = useCallback((content, images = []) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
