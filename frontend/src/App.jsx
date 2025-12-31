@@ -19,9 +19,6 @@ import { useCodeDisplayMode } from './contexts/CodeDisplayContext'
 import { useSettings } from './contexts/SettingsContext'
 import { parseUIActions } from './utils/uiActions'
 
-// Tools that are considered safe (read-only or low-risk)
-const SAFE_TOOLS = ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Task', 'TodoWrite', 'AskUserQuestion']
-
 // Shows time since last WebSocket event - helps debug hangs
 function LastEventIndicator({ lastEventTime }) {
   const [elapsed, setElapsed] = useState(0)
@@ -59,18 +56,6 @@ function celebrate() {
     // Ignore DOM errors from canvas-confetti cleanup
     console.debug('Confetti animation error (safe to ignore):', e.message)
   }
-}
-
-function checkNeedsPermission(toolName, permissionMode) {
-  if (permissionMode === 'bypassPermissions') return false
-  // Note: plan mode permission requests come via CLI events, not tool_use
-  if (permissionMode === 'plan') return false
-  if (permissionMode === 'acceptEdits') {
-    // Only write/edit tools need permission
-    return !SAFE_TOOLS.includes(toolName)
-  }
-  // 'default' mode - all tools need permission
-  return true
 }
 
 function App() {
@@ -460,17 +445,8 @@ function App() {
               setPlanFile(null)
             }
 
-            const needsPermission = checkNeedsPermission(item.name, permissionMode)
-            if (needsPermission) {
-              setPendingPermissions((prev) => [
-                ...prev,
-                {
-                  id: item.id,
-                  name: item.name,
-                  input: item.input,
-                },
-              ])
-            }
+            // Note: Permission prompts are handled via 'permission_request' events from CLI,
+            // not by checking tool_use here. The CLI knows when it needs permission.
           }
         }
 

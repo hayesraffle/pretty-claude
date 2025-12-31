@@ -51,6 +51,7 @@ Only use this format when you genuinely need user input to proceed. For simple y
             "--permission-mode", self.permission_mode,
             "--append-system-prompt", questions_prompt,
         ]
+        print(f"[ClaudeRunner] Starting CLI with permission_mode={self.permission_mode}")
 
         # Resume existing session if we have a session_id (preserves full conversation context)
         if self.session_id:
