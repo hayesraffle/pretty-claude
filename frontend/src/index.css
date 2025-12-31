@@ -581,7 +581,7 @@ code ::selection,
   font-size: 15px;
   line-height: 1.9;
   letter-spacing: 0.01em;
-  padding: 8px 20px;
+  padding: 8px 20px 8px 0; /* Remove left padding, lines have their own gutter */
   overflow-x: auto;
 }
 
@@ -926,7 +926,7 @@ code ::selection,
 .pretty-code-line {
   display: block;
   min-height: 2.2em;
-  padding-left: 0;
+  padding-left: 24px; /* Base gutter for block visualization hover zone */
   padding-bottom: 0.15em;
   position: relative;
   transition: background-color 0.15s ease;

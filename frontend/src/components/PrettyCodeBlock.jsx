@@ -966,19 +966,19 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
             ? `block-highlight-${highlightedBlock.type}${isBlockStart ? ` block-start-${highlightedBlock.type}` : ''}`
             : ''
 
+          // Total left padding = 24px base gutter + indentation
+          const totalPadding = 24 + indentPadding
+
           return (
             <div
               key={lineIndex}
               className={`pretty-code-line group ${rangeStart ? 'definition-line' : ''} ${isSelectionLine ? 'bg-pretty-selection rounded' : ''} ${blockClasses}`}
-              style={{ paddingLeft: indentPadding > 0 ? `${indentPadding}px` : undefined }}
+              style={{ paddingLeft: indentPadding > 0 ? `${totalPadding}px` : undefined }}
             >
-              {/* Left hover zone - extends into container padding for block visualization */}
+              {/* Left hover zone - covers gutter area for block visualization */}
               <span
-                className="absolute top-0 bottom-0 z-10 cursor-default hover:bg-black/5 dark:hover:bg-white/5"
-                style={{
-                  left: '-20px', // Extend into container's 20px left padding
-                  width: Math.max(44, indentPadding + 32) // 20px extension + 24px base + indent
-                }}
+                className="absolute left-0 top-0 bottom-0 z-10 cursor-default hover:bg-black/5 dark:hover:bg-white/5"
+                style={{ width: totalPadding }}
                 onMouseEnter={() => handleLineMouseEnter(lineIndex)}
                 onMouseLeave={handleLineMouseLeave}
               />
@@ -990,7 +990,7 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
                     <span
                       key={i}
                       className="pretty-code-indent-line"
-                      style={{ left: `${i * 20 + 8}px` }}
+                      style={{ left: `${24 + i * 20 + 8}px` }} // 24px base gutter + indent position
                     />
                   ))}
                 </span>
@@ -1003,7 +1003,7 @@ export default function PrettyCodeBlock({ code, language = 'javascript', isColla
                   className="collapse-toggle inline-flex items-center justify-center w-4 h-4 mr-1
                              rounded hover:bg-text/10 transition-colors flex-shrink-0"
                   title={isRangeCollapsed ? 'Expand' : 'Collapse'}
-                  style={{ marginLeft: indentPadding > 0 ? `-${indentPadding}px` : undefined }}
+                  style={{ marginLeft: `-${indentPadding}px` }} // Pull back into indent area
                 >
                   {isRangeCollapsed
                     ? <ChevronRight size={12} className="text-text-muted" />
