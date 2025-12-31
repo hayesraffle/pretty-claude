@@ -1133,6 +1133,8 @@ Then refresh this page.`,
           onChangePermissionMode={setPermissionMode}
           workingDir={workingDir}
           onChangeWorkingDir={() => setFileBrowserOpen(true)}
+          todos={todos}
+          isBlocked={pendingPermissions.length > 0 || pendingQuestion !== null || planReady || subAgentQuestions.some(q => !q.answered)}
         />
       </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react'
 import { Send, Square, Folder } from 'lucide-react'
+import TaskProgress from './TaskProgress'
 
 const MODE_OPTIONS = [
   { value: 'plan', label: 'Plan', color: 'bg-purple-500/20 text-purple-600 dark:text-purple-400', dot: 'bg-purple-500' },
@@ -8,7 +9,7 @@ const MODE_OPTIONS = [
   { value: 'default', label: 'Review all', color: 'bg-red-500/20 text-red-600 dark:text-red-400', dot: 'bg-red-500' },
 ]
 
-function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNavigate, onFilesDropped, permissionMode, isStreaming, onChangePermissionMode, workingDir, onChangeWorkingDir }) {
+function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNavigate, onFilesDropped, permissionMode, isStreaming, onChangePermissionMode, workingDir, onChangeWorkingDir, todos, isBlocked }) {
   const textareaRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
   const [attachedImages, setAttachedImages] = useState([])
@@ -236,6 +237,13 @@ function InputBox({ onSend, onStop, disabled, value = '', onChange, onHistoryNav
             </button>
           )}
         </div>
+
+        {/* Task progress - shown when there are active todos */}
+        {todos && todos.length > 0 && (
+          <div className="mt-2 px-4">
+            <TaskProgress todos={todos} isBlocked={isBlocked} />
+          </div>
+        )}
 
         {/* Status bar - aligned with input text */}
         <div className="flex items-center justify-between mt-2 px-4 text-xs text-text-muted">

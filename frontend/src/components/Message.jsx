@@ -591,16 +591,6 @@ export default function Message({
         </div>
       )}
 
-      {/* Git action bar - shown after task completion */}
-      {showGitActionBar && (
-        <GitActionBar
-          initialState={initialGitState}
-          onDismiss={onCommitDismiss}
-          onCelebrate={onCelebrate}
-          onAskClaude={onAskClaude}
-        />
-      )}
-
       {/* Plan content - shown when there's plan content in this message */}
       {planContent && !planDismissed && (
         <div className="mt-6">
@@ -633,6 +623,16 @@ export default function Message({
             </div>
           )}
         </div>
+      )}
+
+      {/* Git action bar - shown after task completion, but NOT during plan mode */}
+      {showGitActionBar && !planContent && (
+        <GitActionBar
+          initialState={initialGitState}
+          onDismiss={onCommitDismiss}
+          onCelebrate={onCelebrate}
+          onAskClaude={onAskClaude}
+        />
       )}
 
       {/* Action buttons - shown on hover when not loading */}
