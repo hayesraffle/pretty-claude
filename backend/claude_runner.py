@@ -200,6 +200,7 @@ Only use this format when you genuinely need user input to proceed. For simple y
             "tool_use_id": tool_use_id,
             "allowed": allowed
         }
+        print(f"[ClaudeRunner] Sending permission_response to CLI: {response}")
         await self._write_json(response)
 
     async def send_question_response(self, tool_use_id: str, answers: dict):

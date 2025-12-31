@@ -788,11 +788,13 @@ Then refresh this page.`,
   }
 
   const handlePermissionApprove = (toolUseId) => {
+    console.log('%c[Permission]', 'color: #22c55e; font-weight: bold', 'Approving:', toolUseId)
     sendPermissionResponse(toolUseId, true)
     setPendingPermissions((prev) => prev.filter((p) => p.id !== toolUseId))
   }
 
   const handlePermissionReject = (toolUseId) => {
+    console.log('%c[Permission]', 'color: #ef4444; font-weight: bold', 'Rejecting:', toolUseId)
     sendPermissionResponse(toolUseId, false)
     setPendingPermissions((prev) => prev.filter((p) => p.id !== toolUseId))
   }

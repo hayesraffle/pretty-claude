@@ -695,6 +695,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         elif interrupt_type == "permission_response":
                             tool_use_id = interrupt_data.get("tool_use_id")
                             allowed = interrupt_data.get("allowed", False)
+                            print(f"[WS] Received permission_response: tool_use_id={tool_use_id}, allowed={allowed}")
                             await runner.send_permission_response(tool_use_id, allowed)
                         elif interrupt_type == "question_response":
                             tool_use_id = interrupt_data.get("tool_use_id")

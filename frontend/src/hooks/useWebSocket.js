@@ -18,6 +18,7 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
   // Track previous values for change detection
   const prevSessionIdRef = useRef(sessionId)
   const prevWorkingDirRef = useRef(workingDir)
+  const prevPermissionModeRef = useRef(permissionMode)
 
   // Update refs when params change
   useEffect(() => {
@@ -179,6 +180,22 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
     }
   }, [workingDir, connect])
 
+  // Reconnect when permissionMode changes
+  // The CLI subprocess is started with a specific permission mode, so we need to restart
+  // to apply the new mode. The conversation context is maintained via session resumption.
+  useEffect(() => {
+    if (permissionMode !== prevPermissionModeRef.current) {
+      prevPermissionModeRef.current = permissionMode
+      // Reconnect if already connected
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        console.log('%c[WS]', 'color: #8b5cf6; font-weight: bold', 'Reconnecting with new permissionMode:', permissionMode)
+        wsRef.current.close()
+        wsRef.current = null
+        setTimeout(() => connect(), 100)
+      }
+    }
+  }, [permissionMode, connect])
+
   const sendMessage = useCallback((content, images = []) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       const msg = { type: 'message', content, images }
@@ -197,11 +214,11 @@ export function useWebSocket(permissionMode = 'default', workingDir = '', sessio
 
   const sendPermissionResponse = useCallback((toolUseId, allowed) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'permission_response',
-        tool_use_id: toolUseId,
-        allowed,
-      }))
+      const msg = { type: 'permission_response', tool_use_id: toolUseId, allowed }
+      console.log('%c[WS→]', 'color: #22c55e; font-weight: bold', 'permission_response', msg)
+      wsRef.current.send(JSON.stringify(msg))
+    } else {
+      console.log('%c[WS→]', 'color: #ef4444; font-weight: bold', 'permission_response FAILED - WebSocket not open')
     }
   }, [])
 
