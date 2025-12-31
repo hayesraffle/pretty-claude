@@ -180,15 +180,40 @@ class ClaudeSDKRunner:
         print(f"[SDKRunner] run() called with message: {message[:50]}...")
         self._stop_requested = False
 
-        # System prompt for structured questions
-        questions_prompt = """When you want to ask the user questions or need clarification, format them as a JSON block so the UI can render them interactively. Use this exact format:
+        # System prompt additions for Pretty Code UI
+        pretty_code_prompt = """## Pretty Code UI Instructions
+
+You are running inside Pretty Code, a friendly GUI for Claude Code.
+
+### Interactive Buttons
+When asking questions with 2-4 predictable answers, output a ui-action block so the UI renders clickable buttons:
+
+```ui-action
+{"action": "show_buttons", "buttons": [
+  {"label": "Button Text", "value": "Text sent when clicked"},
+  {"label": "Another Option", "value": "Different response"}
+]}
+```
+
+Use this for: choosing between approaches, yes/no decisions, selecting from options.
+Do NOT use this before tool execution - the UI already shows permission prompts for that.
+
+### After Completing File Changes
+When you finish making file changes the user requested, output this to show a commit button:
+
+```ui-action
+{"action": "show_commit"}
+```
+
+### Structured Questions
+For complex multi-part questions, use this format for an interactive form:
 
 ```json:questions
 {
   "questions": [
     {
-      "header": "Short label (max 12 chars)",
-      "question": "Your full question text?",
+      "header": "Short label",
+      "question": "Your full question?",
       "options": [
         {"label": "Option 1", "description": "Brief description"},
         {"label": "Option 2", "description": "Brief description"}
@@ -199,7 +224,10 @@ class ClaudeSDKRunner:
 }
 ```
 
-Only use this format when you genuinely need user input to proceed. For simple yes/no clarifications, regular text is fine."""
+### Communication Style
+- Be encouraging and friendly - this may be someone learning to code
+- Explain what you're doing in simple terms
+- Celebrate small wins"""
 
         options = ClaudeAgentOptions(
             cwd=self.working_dir,
@@ -208,7 +236,7 @@ Only use this format when you genuinely need user input to proceed. For simple y
             system_prompt={
                 "type": "preset",
                 "preset": "claude_code",
-                "append": questions_prompt
+                "append": pretty_code_prompt
             },
             setting_sources=["user", "project", "local"],  # Load all settings including CLAUDE.md
         )
