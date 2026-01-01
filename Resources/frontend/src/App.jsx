@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Loader2, Trash2, Sun, Moon, FolderOpen, Code, Type, Settings } from 'lucide-react'
+import { Loader2, Trash2, Sun, Moon, FolderOpen, Code, Type, Settings, AlertTriangle, RefreshCw } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import Chat from './components/Chat'
 import InputBox from './components/InputBox'
@@ -1248,6 +1248,30 @@ Then refresh this page.`,
             <Settings size={18} />
           </button>
         </header>
+
+        {/* Disconnected Banner */}
+        {status === 'disconnected' && (
+          <div className="flex-shrink-0 bg-error/10 border-b border-error/20 px-4 py-3">
+            <div className="max-w-3xl mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="text-error flex-shrink-0" size={20} />
+                <div>
+                  <p className="text-sm font-medium text-error">Server not running</p>
+                  <p className="text-xs text-text-muted">
+                    The backend server is offline. Please restart the Pretty Code launcher.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={connect}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-error/10 hover:bg-error/20 text-error rounded-lg transition-colors"
+              >
+                <RefreshCw size={14} />
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Chat area */}
         <Chat
