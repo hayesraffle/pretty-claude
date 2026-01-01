@@ -3,6 +3,26 @@
 # Pretty Code - One-click launcher
 # Double-click this file to start Pretty Code
 
+# ============ Ensure PATH includes common install locations ============
+# This fixes issues where tools are installed but not in PATH
+
+# Homebrew paths (Apple Silicon and Intel)
+[ -d "/opt/homebrew/bin" ] && export PATH="/opt/homebrew/bin:$PATH"
+[ -d "/usr/local/bin" ] && export PATH="/usr/local/bin:$PATH"
+
+# Python user bin directories (where pip installs scripts)
+[ -d "$HOME/Library/Python/3.9/bin" ] && export PATH="$HOME/Library/Python/3.9/bin:$PATH"
+[ -d "$HOME/Library/Python/3.10/bin" ] && export PATH="$HOME/Library/Python/3.10/bin:$PATH"
+[ -d "$HOME/Library/Python/3.11/bin" ] && export PATH="$HOME/Library/Python/3.11/bin:$PATH"
+[ -d "$HOME/Library/Python/3.12/bin" ] && export PATH="$HOME/Library/Python/3.12/bin:$PATH"
+[ -d "$HOME/Library/Python/3.13/bin" ] && export PATH="$HOME/Library/Python/3.13/bin:$PATH"
+[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
+
+# Node.js paths (nvm, volta, system)
+[ -d "$HOME/.nvm/versions/node" ] && export PATH="$(find "$HOME/.nvm/versions/node" -maxdepth 2 -name bin -type d 2>/dev/null | head -1):$PATH"
+[ -d "$HOME/.volta/bin" ] && export PATH="$HOME/.volta/bin:$PATH"
+[ -d "/usr/local/lib/node_modules/.bin" ] && export PATH="/usr/local/lib/node_modules/.bin:$PATH"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
