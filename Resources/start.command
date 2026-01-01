@@ -8,6 +8,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+DIM='\033[2m'
 NC='\033[0m' # No Color
 
 # Get the directory where this script lives (Resources folder)
@@ -18,104 +20,129 @@ CONFIG_DIR="$HOME/.pretty-code"
 PROJECTS_DIR="$HOME/pretty-code-projects"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 
+# Minimum Python version required
+MIN_PYTHON_VERSION="3.10"
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  ✨ Pretty Code Launcher"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Track if we hit any errors
+# ============ Helper Functions ============
+
+# Compare version strings (returns 0 if $1 >= $2)
+version_gte() {
+    [ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
+}
+
+# Get Python version string
+get_python_version() {
+    "$1" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null
+}
+
+# Find a suitable Python >= 3.10
+find_suitable_python() {
+    # Check common locations in order of preference
+    local candidates=(
+        "/opt/homebrew/bin/python3.13"
+        "/opt/homebrew/bin/python3.12"
+        "/opt/homebrew/bin/python3.11"
+        "/opt/homebrew/bin/python3.10"
+        "/usr/local/bin/python3.13"
+        "/usr/local/bin/python3.12"
+        "/usr/local/bin/python3.11"
+        "/usr/local/bin/python3.10"
+        "/opt/homebrew/bin/python3"
+        "/usr/local/bin/python3"
+        "python3"
+    )
+
+    for py in "${candidates[@]}"; do
+        if command -v "$py" &> /dev/null; then
+            local ver=$(get_python_version "$py")
+            if [ -n "$ver" ] && version_gte "$ver" "$MIN_PYTHON_VERSION"; then
+                echo "$py"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+# ============ Check Prerequisites ============
+
 HAS_ERROR=0
+
+# Check for Homebrew (needed for auto-install)
+HAS_BREW=0
+if command -v brew &> /dev/null; then
+    HAS_BREW=1
+    echo -e "${DIM}Homebrew available for auto-install${NC}"
+fi
 
 # Check for Claude Code CLI
 if ! command -v claude &> /dev/null; then
-    echo -e "${RED}✗ Claude Code CLI not found${NC}"
-    echo "  Install it with: npm install -g @anthropic-ai/claude-code"
-    echo "  Then run 'claude' once to authenticate"
-    echo ""
-    HAS_ERROR=1
+    echo -e "${YELLOW}! Claude Code CLI not found${NC}"
+    if command -v npm &> /dev/null; then
+        echo -e "  Installing now..."
+        if npm install -g @anthropic-ai/claude-code; then
+            echo -e "${GREEN}✓${NC} Claude Code CLI installed"
+            echo -e "${YELLOW}  Note: Run 'claude' once to authenticate${NC}"
+        else
+            echo -e "${RED}✗ Failed to install Claude Code CLI${NC}"
+            HAS_ERROR=1
+        fi
+    else
+        echo -e "${RED}✗ npm not found - cannot auto-install Claude Code CLI${NC}"
+        echo "  Install Node.js from: https://nodejs.org/"
+        HAS_ERROR=1
+    fi
 else
     echo -e "${GREEN}✓${NC} Claude Code CLI found"
-fi
-
-# Check for Python
-if ! command -v python3 &> /dev/null; then
-    echo -e "${RED}✗ Python 3 not found${NC}"
-    echo "  Install it from: https://www.python.org/downloads/"
-    echo ""
-    HAS_ERROR=1
-else
-    echo -e "${GREEN}✓${NC} Python 3 found"
 fi
 
 # Check for Node/npm
 if ! command -v npm &> /dev/null; then
     echo -e "${RED}✗ npm not found${NC}"
     echo "  Install Node.js from: https://nodejs.org/"
-    echo ""
     HAS_ERROR=1
 else
     echo -e "${GREEN}✓${NC} npm found"
 fi
 
-# Check for backend venv and dependencies
-cd "$SCRIPT_DIR/backend"
-if [ ! -d "venv" ]; then
-    echo -e "${YELLOW}! Backend virtual environment not found${NC}"
-    echo "  Setting it up now..."
-    python3 -m venv venv
-    source venv/bin/activate
-    if ! pip install -q --index-url https://pypi.org/simple/ -r requirements.txt; then
-        echo -e "${RED}✗ Failed to install backend dependencies${NC}"
-        echo ""
-        echo "This might be a network issue or Python version problem."
-        echo "Try running manually:"
-        echo "  cd $SCRIPT_DIR/backend"
-        echo "  rm -rf venv"
-        echo "  python3 -m venv venv"
-        echo "  source venv/bin/activate"
-        echo "  pip install --index-url https://pypi.org/simple/ -r requirements.txt"
-        echo ""
-        echo "Press any key to close..."
-        read -n 1
-        exit 1
-    fi
-    echo -e "${GREEN}✓${NC} Backend environment ready"
-else
-    source venv/bin/activate
-    # Verify dependencies are installed by checking for a key package
-    if ! python3 -c "import dotenv" 2>/dev/null; then
-        echo -e "${YELLOW}! Backend dependencies missing, installing...${NC}"
-        if ! pip install -q --index-url https://pypi.org/simple/ -r requirements.txt; then
-            echo -e "${RED}✗ Failed to install backend dependencies${NC}"
-            echo ""
-            echo "Try deleting and recreating the virtual environment:"
-            echo "  cd $SCRIPT_DIR/backend"
-            echo "  rm -rf venv"
-            echo "  python3 -m venv venv"
-            echo "  source venv/bin/activate"
-            echo "  pip install --index-url https://pypi.org/simple/ -r requirements.txt"
-            echo ""
-            echo "Press any key to close..."
-            read -n 1
-            exit 1
+# Check for suitable Python (>= 3.10)
+PYTHON_CMD=$(find_suitable_python)
+if [ -z "$PYTHON_CMD" ]; then
+    echo -e "${YELLOW}! Python $MIN_PYTHON_VERSION+ not found${NC}"
+
+    # Try to install via Homebrew
+    if [ $HAS_BREW -eq 1 ]; then
+        echo -e "  Installing Python 3.12 via Homebrew..."
+        if brew install python@3.12; then
+            PYTHON_CMD=$(find_suitable_python)
+            if [ -n "$PYTHON_CMD" ]; then
+                echo -e "${GREEN}✓${NC} Python installed: $PYTHON_CMD"
+            else
+                echo -e "${RED}✗ Python installation succeeded but still can't find it${NC}"
+                HAS_ERROR=1
+            fi
+        else
+            echo -e "${RED}✗ Failed to install Python via Homebrew${NC}"
+            HAS_ERROR=1
         fi
+    else
+        echo -e "${RED}✗ Cannot auto-install Python (Homebrew not found)${NC}"
+        echo "  Install Python 3.10+ from: https://www.python.org/downloads/"
+        echo "  Or install Homebrew: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+        HAS_ERROR=1
     fi
-    echo -e "${GREEN}✓${NC} Backend environment ready"
-fi
-
-# Check for frontend node_modules
-if [ ! -d "$SCRIPT_DIR/frontend/node_modules" ]; then
-    echo -e "${YELLOW}! Frontend dependencies not installed${NC}"
-    echo "  Installing now..."
-    cd "$SCRIPT_DIR/frontend"
-    npm install
-    echo -e "${GREEN}✓${NC} Frontend dependencies ready"
 else
-    echo -e "${GREEN}✓${NC} Frontend dependencies ready"
+    PY_VER=$(get_python_version "$PYTHON_CMD")
+    echo -e "${GREEN}✓${NC} Python $PY_VER found ($PYTHON_CMD)"
 fi
 
-# If we hit any errors, stop here
+# Stop here if we have fatal errors
 if [ $HAS_ERROR -eq 1 ]; then
     echo ""
     echo -e "${RED}Please fix the issues above and try again.${NC}"
@@ -125,16 +152,103 @@ if [ $HAS_ERROR -eq 1 ]; then
     exit 1
 fi
 
-# Create config directory if needed
+# ============ Setup Backend ============
+
+cd "$SCRIPT_DIR/backend"
+
+# Function to setup/repair the venv
+setup_backend_venv() {
+    echo -e "${YELLOW}! Setting up backend environment...${NC}"
+
+    # Remove old venv if it exists
+    if [ -d "venv" ]; then
+        echo -e "  Removing old virtual environment..."
+        rm -rf venv
+    fi
+
+    # Create new venv with the correct Python
+    echo -e "  Creating virtual environment with $PYTHON_CMD..."
+    if ! "$PYTHON_CMD" -m venv venv; then
+        echo -e "${RED}✗ Failed to create virtual environment${NC}"
+        return 1
+    fi
+
+    # Activate and install dependencies
+    source venv/bin/activate
+
+    echo -e "  Upgrading pip..."
+    pip install --quiet --upgrade pip
+
+    echo -e "  Installing dependencies..."
+    if ! pip install --quiet --index-url https://pypi.org/simple/ -r requirements.txt; then
+        echo -e "${RED}✗ Failed to install dependencies${NC}"
+        return 1
+    fi
+
+    return 0
+}
+
+# Check if venv exists and is working
+VENV_OK=0
+if [ -d "venv" ]; then
+    source venv/bin/activate 2>/dev/null
+
+    # Check if we can import the key package (claude_agent_sdk requires Python 3.10+)
+    if python3 -c "import claude_agent_sdk" 2>/dev/null; then
+        VENV_OK=1
+        echo -e "${GREEN}✓${NC} Backend environment ready"
+    else
+        echo -e "${YELLOW}! Backend environment needs repair${NC}"
+    fi
+fi
+
+# Setup or repair venv if needed
+if [ $VENV_OK -eq 0 ]; then
+    if ! setup_backend_venv; then
+        echo ""
+        echo -e "${RED}Failed to setup backend environment.${NC}"
+        echo ""
+        echo "Try running manually:"
+        echo "  cd $SCRIPT_DIR/backend"
+        echo "  $PYTHON_CMD -m venv venv"
+        echo "  source venv/bin/activate"
+        echo "  pip install -r requirements.txt"
+        echo ""
+        echo "Press any key to close..."
+        read -n 1
+        exit 1
+    fi
+    echo -e "${GREEN}✓${NC} Backend environment ready"
+fi
+
+# ============ Setup Frontend ============
+
+cd "$SCRIPT_DIR/frontend"
+
+if [ ! -d "node_modules" ]; then
+    echo -e "${YELLOW}! Installing frontend dependencies...${NC}"
+    if npm install; then
+        echo -e "${GREEN}✓${NC} Frontend dependencies ready"
+    else
+        echo -e "${RED}✗ Failed to install frontend dependencies${NC}"
+        echo ""
+        echo "Press any key to close..."
+        read -n 1
+        exit 1
+    fi
+else
+    echo -e "${GREEN}✓${NC} Frontend dependencies ready"
+fi
+
+# ============ First-time Setup ============
+
 mkdir -p "$CONFIG_DIR"
 
-# Create projects sandbox if this is first run
 if [ ! -d "$PROJECTS_DIR" ]; then
     echo ""
     echo -e "${BLUE}First time setup: Creating your projects folder...${NC}"
     mkdir -p "$PROJECTS_DIR/welcome"
 
-    # Create welcome README
     cat > "$PROJECTS_DIR/welcome/README.md" << 'WELCOME_EOF'
 # Welcome to Pretty Code! 👋
 
@@ -162,17 +276,17 @@ Happy coding! 🚀
 WELCOME_EOF
 
     echo -e "${GREEN}✓${NC} Created ~/pretty-code-projects/welcome"
-
-    # Save initial config pointing to welcome folder
     echo "{\"workingDirectory\": \"$PROJECTS_DIR/welcome\"}" > "$CONFIG_FILE"
 fi
+
+# ============ Start Servers ============
 
 echo ""
 echo "Starting servers..."
 echo ""
 
-# Capture backend output to a log file for error detection
 BACKEND_LOG="/tmp/pretty-code-backend-$$.log"
+VITE_LOG="/tmp/pretty-code-vite-$$.log"
 
 # Start backend
 cd "$SCRIPT_DIR/backend"
@@ -181,20 +295,20 @@ python3 main.py > "$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
 echo -e "${GREEN}✓${NC} Backend starting (PID: $BACKEND_PID)"
 
-# Start frontend and capture output to detect actual port
+# Start frontend
 cd "$SCRIPT_DIR/frontend"
-VITE_LOG="/tmp/pretty-code-vite-$$.log"
 npm run dev > "$VITE_LOG" 2>&1 &
 FRONTEND_PID=$!
 echo -e "${GREEN}✓${NC} Frontend starting (PID: $FRONTEND_PID)"
 
-# Wait for Vite to report its URL (up to 30 seconds)
+# Wait for servers to start
 echo ""
 echo "Waiting for servers to start..."
 FRONTEND_PORT=""
 BACKEND_OK=0
+
 for i in {1..30}; do
-    # Check if backend is still running
+    # Check if backend crashed
     if ! kill -0 $BACKEND_PID 2>/dev/null; then
         echo ""
         echo -e "${RED}✗ Backend failed to start!${NC}"
@@ -202,23 +316,28 @@ for i in {1..30}; do
         echo "Error log:"
         cat "$BACKEND_LOG"
         echo ""
-        echo -e "${YELLOW}Try running these commands manually to fix:${NC}"
-        echo "  cd $SCRIPT_DIR/backend"
-        echo "  source venv/bin/activate"
-        echo "  pip install --index-url https://pypi.org/simple/ -r requirements.txt"
+
+        # Check if it's a Python version issue
+        if grep -q "claude_agent_sdk" "$BACKEND_LOG" || grep -q "ModuleNotFoundError" "$BACKEND_LOG"; then
+            echo -e "${YELLOW}This looks like a dependency issue. Attempting repair...${NC}"
+            kill $FRONTEND_PID 2>/dev/null
+            rm -f "$BACKEND_LOG" "$VITE_LOG"
+
+            cd "$SCRIPT_DIR/backend"
+            if setup_backend_venv; then
+                echo -e "${GREEN}Repair successful! Please run this script again.${NC}"
+            fi
+        fi
+
         echo ""
         echo "Press any key to close..."
-        # Kill frontend since we're failing
-        kill $FRONTEND_PID 2>/dev/null
-        rm -f "$BACKEND_LOG" "$VITE_LOG"
         read -n 1
         exit 1
     fi
 
-    # Check if backend is responding (port 8000)
+    # Check if backend is responding
     if [ $BACKEND_OK -eq 0 ]; then
-        if curl -s http://localhost:8000/api/health > /dev/null 2>&1 || \
-           curl -s http://localhost:8000/ > /dev/null 2>&1; then
+        if curl -s http://localhost:8000/ > /dev/null 2>&1; then
             BACKEND_OK=1
         fi
     fi
@@ -236,12 +355,11 @@ for i in {1..30}; do
     sleep 1
 done
 
-# Final check - is backend still running?
+# Final backend check
 if ! kill -0 $BACKEND_PID 2>/dev/null; then
     echo ""
     echo -e "${RED}✗ Backend crashed during startup!${NC}"
     echo ""
-    echo "Error log:"
     cat "$BACKEND_LOG"
     echo ""
     echo "Press any key to close..."
@@ -251,17 +369,17 @@ if ! kill -0 $BACKEND_PID 2>/dev/null; then
     exit 1
 fi
 
-# Fall back to 5173 if we couldn't detect the port
+# Fall back to default port
 if [ -z "$FRONTEND_PORT" ]; then
     FRONTEND_PORT="5173"
     echo -e "${YELLOW}! Could not detect Vite port, assuming 5173${NC}"
 fi
 
-# Start tailing both logs in background so user sees output
+# Tail logs in background
 tail -f "$VITE_LOG" "$BACKEND_LOG" &
 TAIL_PID=$!
 
-# Cleanup function with guard to prevent double-execution
+# Cleanup handler
 CLEANUP_DONE=0
 cleanup() {
     if [ $CLEANUP_DONE -eq 1 ]; then
@@ -278,7 +396,7 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM SIGHUP EXIT
 
-# Open browser with the actual port
+# Open browser
 echo ""
 echo -e "${GREEN}Opening browser...${NC}"
 open "http://localhost:$FRONTEND_PORT"
@@ -287,12 +405,11 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Pretty Code is running!"
 echo "  "
-echo "  Frontend: http://localhost:$FRONTEND_PORT"
-echo "  Backend:  http://localhost:8000"
+echo -e "  Frontend: ${CYAN}http://localhost:$FRONTEND_PORT${NC}"
+echo -e "  Backend:  ${CYAN}http://localhost:8000${NC}"
 echo "  "
 echo "  Press Ctrl+C to stop"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Wait for both processes
 wait
