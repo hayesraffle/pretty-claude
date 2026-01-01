@@ -54,18 +54,22 @@ Control how much autonomy Claude has:
 
 | Mode | Description |
 |------|-------------|
-| **YOLO** | Auto-approve everything (for trusted tasks) |
-| **Accept Edits** | Auto-approve reads, prompt for writes |
+| **Autopilot** | Auto-approve everything (for trusted tasks) |
+| **Review Some** | Auto-approve reads, prompt for writes |
 | **Plan Mode** | Claude proposes a plan, you approve before execution |
-| **Always Ask** | Prompt for every action |
+| **Review All** | Prompt for every action |
 
-### Tool Call Visualization
+### Pretty Code View
 
-Pretty Code renders Claude's tool calls as collapsible cards showing:
-- File reads with syntax highlighting
-- Code diffs for edits
-- Command output for bash
-- Search results for grep/glob
+Code is displayed with semantic typography - keywords, functions, and values are styled for readability. Hover for inline documentation.
+
+![Code View](docs/code-view.png)
+
+### Dark Mode
+
+Full dark mode support, automatically saved to your preferences.
+
+![Dark Mode](docs/dark-mode.png)
 
 ### Conversation Management
 
