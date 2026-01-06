@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Pretty Code - App Launcher
+# Pretty Claude - App Launcher
 # This script is run when the .app is opened
 
 # Get the directory where the .app bundle lives (two levels up from MacOS)

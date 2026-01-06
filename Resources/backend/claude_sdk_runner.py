@@ -1,5 +1,5 @@
 """
-Claude Agent SDK wrapper for pretty-code.
+Claude Agent SDK wrapper for pretty-claude.
 
 Uses the official claude-agent-sdk package instead of CLI subprocess
 to enable proper permission handling via can_use_tool callback.
@@ -188,10 +188,10 @@ class ClaudeSDKRunner:
         log("SDK", f"Run: {message[:50]}...", Colors.BLUE)
         self._stop_requested = False
 
-        # System prompt additions for Pretty Code UI
-        pretty_code_prompt = """## Pretty Code UI Instructions
+        # System prompt additions for Pretty Claude UI
+        pretty_claude_prompt = """## Pretty Claude UI Instructions
 
-You are running inside Pretty Code, a friendly GUI for Claude Code.
+You are running inside Pretty Claude, a friendly GUI for Claude Code.
 
 ### Interactive Buttons
 When asking questions with 2-4 predictable answers, output a ui-action block so the UI renders clickable buttons:
@@ -244,7 +244,7 @@ For complex multi-part questions, use this format for an interactive form:
             system_prompt={
                 "type": "preset",
                 "preset": "claude_code",
-                "append": pretty_code_prompt
+                "append": pretty_claude_prompt
             },
             setting_sources=["user", "project", "local"],  # Load all settings including CLAUDE.md
         )

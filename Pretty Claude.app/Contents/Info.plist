@@ -7,11 +7,11 @@
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
-    <string>com.prettycode.app</string>
+    <string>com.prettyclaude.app</string>
     <key>CFBundleName</key>
-    <string>Pretty Code</string>
+    <string>Pretty Claude</string>
     <key>CFBundleDisplayName</key>
-    <string>Pretty Code</string>
+    <string>Pretty Claude</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleVersion</key>

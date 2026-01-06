@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
 const API_BASE = 'http://localhost:8000'
-const CURRENT_KEY = 'pretty-code-current'
+const CURRENT_KEY = 'pretty-claude-current'
 
 export function useConversationStorage() {
   const [conversations, setConversations] = useState([])

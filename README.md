@@ -1,12 +1,12 @@
-# Pretty Code
+# Pretty Claude
 
 A beautiful, browser-based GUI for [Claude Code](https://claude.ai/code). Makes AI-assisted coding accessible and less intimidating - designed for both developers and people learning to code.
 
-![Pretty Code Screenshot](screenshot.png)
+![Pretty Claude Screenshot](screenshot.png)
 
-## Why Pretty Code?
+## Why Pretty Claude?
 
-Claude Code is powerful, but the terminal can feel intimidating. Pretty Code wraps it in a modern, friendly interface:
+Claude Code is powerful, but the terminal can feel intimidating. Pretty Claude wraps it in a modern, friendly interface:
 
 - **Visual tool calls** - See file reads, edits, and commands in a clean UI instead of raw terminal output
 - **Permission controls** - Approve, reject, or auto-allow actions with one click
@@ -25,7 +25,7 @@ Claude Code is powerful, but the terminal can feel intimidating. Pretty Code wra
 ### Option 1: One-Click Launch (macOS)
 
 1. Clone this repo
-2. Double-click `Pretty Code.app` or `Resources/start.command`
+2. Double-click `Pretty Claude.app` or `Resources/start.command`
 3. Browser opens automatically
 
 ### Option 2: Manual Setup
@@ -59,7 +59,7 @@ Control how much autonomy Claude has:
 | **Plan Mode** | Claude proposes a plan, you approve before execution |
 | **Review All** | Prompt for every action |
 
-### Pretty Code View
+### Pretty Claude View
 
 Code is displayed with semantic typography - keywords, functions, and values are styled for readability. Hover for inline documentation.
 
@@ -73,7 +73,7 @@ Full dark mode support, automatically saved to your preferences.
 
 ### Conversation Management
 
-- Automatic saving to `~/.pretty-code/conversations/`
+- Automatic saving to `~/.pretty-claude/conversations/`
 - Sidebar to browse and switch conversations
 - Export to Markdown or JSON
 - File browser to change working directory
@@ -108,10 +108,10 @@ The frontend is React + TailwindCSS v4 + Vite. The backend is FastAPI with WebSo
 
 ## Configuration
 
-Pretty Code stores data in:
-- `~/.pretty-code/config.json` - Settings
-- `~/.pretty-code/conversations/` - Saved conversations
-- `~/pretty-code-projects/` - Default sandbox for new users
+Pretty Claude stores data in:
+- `~/.pretty-claude/config.json` - Settings
+- `~/.pretty-claude/conversations/` - Saved conversations
+- `~/pretty-claude-projects/` - Default sandbox for new users
 
 ## Contributing
 

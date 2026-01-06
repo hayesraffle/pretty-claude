@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**pretty-code** is a web-based GUI wrapper for Claude Code CLI. It creates a beautiful, modern browser interface to make AI-assisted coding accessible and less intimidating - designed for both developers and users learning to code.
+**pretty-claude** is a web-based GUI wrapper for Claude Code CLI. It creates a beautiful, modern browser interface to make AI-assisted coding accessible and less intimidating - designed for both developers and users learning to code.
 
 Core principle: Code should feel like reading a well-designed article, not staring at a scary terminal.
 
@@ -28,7 +28,7 @@ Key architectural decisions:
 - **Bidirectional WebSocket**: Real-time streaming AND interrupts (stop, permission responses)
 - **Images sent as base64**: Images are sent directly in Claude's native API format
 - **Concurrent streaming**: Backend uses asyncio tasks to handle streaming while listening for interrupts
-- **Persistent conversations**: Saved to `~/.pretty-code/conversations/` as JSON files
+- **Persistent conversations**: Saved to `~/.pretty-claude/conversations/` as JSON files
 
 ## Tech Stack
 
@@ -117,4 +117,4 @@ backend/
 
 ## Note on UI Instructions
 
-UI action buttons and other Pretty Code-specific instructions are injected via the SDK system prompt (see `claude_sdk_runner.py`). They don't need to be in this file.
+UI action buttons and other Pretty Claude-specific instructions are injected via the SDK system prompt (see `claude_sdk_runner.py`). They don't need to be in this file.

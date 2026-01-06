@@ -747,7 +747,7 @@ function App() {
         // CLI is requesting permission (happens in plan mode and default mode)
         // Auto-approve reads of user-uploaded images (temp directory)
         const filePath = event.input?.file_path || event.input?.path || ''
-        const isUserUploadedImage = event.tool === 'Read' && filePath.includes('pretty-code-uploads')
+        const isUserUploadedImage = event.tool === 'Read' && filePath.includes('pretty-claude-uploads')
 
         if (isUserUploadedImage) {
           // User already provided this image - auto-approve
@@ -1188,8 +1188,8 @@ Then refresh this page.`,
           <div className="flex-1 flex justify-center">
             <div className="max-w-3xl w-full flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="Pretty Code" className="w-8 h-8 rounded-lg" />
-              <h1 className="text-[18px] font-medium text-text">pretty-code</h1>
+              <img src="/logo.png" alt="Pretty Claude" className="w-8 h-8 rounded-lg" />
+              <h1 className="text-[18px] font-medium text-text">pretty-claude</h1>
             </div>
 
             <div className="flex items-center gap-4">
@@ -1282,7 +1282,7 @@ Then refresh this page.`,
                   <p className="text-xs text-text-muted">
                     {status === 'connecting'
                       ? 'Attempting to connect to the backend server.'
-                      : 'The backend server is offline. Please restart the Pretty Code launcher.'}
+                      : 'The backend server is offline. Please restart the Pretty Claude launcher.'}
                   </p>
                 </div>
               </div>

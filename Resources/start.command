@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Pretty Code - One-click launcher
-# Double-click this file to start Pretty Code
+# Pretty Claude - One-click launcher
+# Double-click this file to start Pretty Claude
 
 # ============ Ensure PATH includes common install locations ============
 # This fixes issues where tools are installed but not in PATH
@@ -36,8 +36,8 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Config and projects directories
-CONFIG_DIR="$HOME/.pretty-code"
-PROJECTS_DIR="$HOME/pretty-code-projects"
+CONFIG_DIR="$HOME/.pretty-claude"
+PROJECTS_DIR="$HOME/pretty-claude-projects"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 
 # Minimum Python version required
@@ -45,7 +45,7 @@ MIN_PYTHON_VERSION="3.10"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  ✨ Pretty Code Launcher"
+echo "  ✨ Pretty Claude Launcher"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -192,7 +192,7 @@ if [ $API_KEY_FOUND -eq 0 ]; then
     echo ""
     echo -e "${YELLOW}! Anthropic API key not configured${NC}"
     echo ""
-    echo "  Pretty Code needs an API key to work."
+    echo "  Pretty Claude needs an API key to work."
     echo "  Get one at: https://console.anthropic.com/settings/keys"
     echo ""
 
@@ -343,7 +343,7 @@ if [ ! -d "$PROJECTS_DIR" ]; then
     mkdir -p "$PROJECTS_DIR/welcome"
 
     cat > "$PROJECTS_DIR/welcome/README.md" << 'WELCOME_EOF'
-# Welcome to Pretty Code! 👋
+# Welcome to Pretty Claude! 👋
 
 This is your sandbox for coding with Claude.
 
@@ -368,7 +368,7 @@ This is your sandbox for coding with Claude.
 Happy coding! 🚀
 WELCOME_EOF
 
-    echo -e "${GREEN}✓${NC} Created ~/pretty-code-projects/welcome"
+    echo -e "${GREEN}✓${NC} Created ~/pretty-claude-projects/welcome"
     echo "{\"workingDirectory\": \"$PROJECTS_DIR/welcome\"}" > "$CONFIG_FILE"
 fi
 
@@ -378,8 +378,8 @@ echo ""
 echo "Starting servers..."
 echo ""
 
-BACKEND_LOG="/tmp/pretty-code-backend-$$.log"
-VITE_LOG="/tmp/pretty-code-vite-$$.log"
+BACKEND_LOG="/tmp/pretty-claude-backend-$$.log"
+VITE_LOG="/tmp/pretty-claude-vite-$$.log"
 
 # Start backend
 cd "$SCRIPT_DIR/backend"
@@ -496,7 +496,7 @@ open "http://localhost:$FRONTEND_PORT"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Pretty Code is running!"
+echo "  Pretty Claude is running!"
 echo "  "
 echo -e "  Frontend: ${CYAN}http://localhost:$FRONTEND_PORT${NC}"
 echo -e "  Backend:  ${CYAN}http://localhost:8000${NC}"

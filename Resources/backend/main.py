@@ -38,11 +38,11 @@ def log(tag: str, msg: str, color: str = Colors.CYAN):
 load_dotenv(Path(__file__).parent / ".env")
 
 # Create a persistent temp directory for uploaded images
-UPLOAD_DIR = Path(tempfile.gettempdir()) / "pretty-code-uploads"
+UPLOAD_DIR = Path(tempfile.gettempdir()) / "pretty-claude-uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 # Create a data directory for persistent storage (in user's home directory)
-DATA_DIR = Path.home() / ".pretty-code"
+DATA_DIR = Path.home() / ".pretty-claude"
 CONVERSATIONS_DIR = DATA_DIR / "conversations"
 CONFIG_FILE = DATA_DIR / "config.json"
 DATA_DIR.mkdir(exist_ok=True)
@@ -50,7 +50,7 @@ CONVERSATIONS_DIR.mkdir(exist_ok=True)
 
 
 def load_config():
-    """Load config from ~/.pretty-code/config.json"""
+    """Load config from ~/.pretty-claude/config.json"""
     if CONFIG_FILE.exists():
         try:
             return json.loads(CONFIG_FILE.read_text())
@@ -60,18 +60,18 @@ def load_config():
 
 
 def save_config(config: dict):
-    """Save config to ~/.pretty-code/config.json"""
+    """Save config to ~/.pretty-claude/config.json"""
     try:
         CONFIG_FILE.write_text(json.dumps(config, indent=2))
     except:
         pass
 
 
-app = FastAPI(title="pretty-code backend")
+app = FastAPI(title="pretty-claude backend")
 
 # Track current working directory - load from config or use default projects folder
 _config = load_config()
-_default_projects = Path.home() / "pretty-code-projects"
+_default_projects = Path.home() / "pretty-claude-projects"
 current_working_dir = _config.get("workingDirectory", str(_default_projects) if _default_projects.exists() else os.getcwd())
 
 # Enable CORS for frontend
@@ -89,7 +89,7 @@ active_connections: dict[WebSocket, ClaudeCodeRunner] = {}
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "message": "pretty-code backend is running"}
+    return {"status": "ok", "message": "pretty-claude backend is running"}
 
 
 @app.get("/health")
@@ -577,7 +577,7 @@ async def git_commit(request: CommitRequest):
                 capture_output=True,
                 text=True
             )
-            commit_message = "Changes from pretty-code session"
+            commit_message = "Changes from pretty-claude session"
 
         # Commit
         commit_result = subprocess.run(
@@ -867,5 +867,5 @@ if __name__ == "__main__":
     log_config["formatters"]["access"]["fmt"] = "\033[94m%(levelprefix)s\033[0m %(message)s"
     log_config["formatters"]["default"]["fmt"] = "\033[94m%(levelprefix)s\033[0m %(message)s"
 
-    print(f"\n{Colors.GREEN}✓{Colors.RESET} Pretty Code backend starting on {Colors.CYAN}http://localhost:8000{Colors.RESET}\n")
+    print(f"\n{Colors.GREEN}✓{Colors.RESET} Pretty Claude backend starting on {Colors.CYAN}http://localhost:8000{Colors.RESET}\n")
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, log_config=log_config)

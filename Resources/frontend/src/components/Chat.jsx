@@ -97,7 +97,7 @@ export default function Chat({
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
             {/* Logo */}
-            <img src="/logo.png" alt="Pretty Code" className="w-20 h-20 rounded-2xl mb-6" />
+            <img src="/logo.png" alt="Pretty Claude" className="w-20 h-20 rounded-2xl mb-6" />
 
             {/* Greeting */}
             <h1 className="text-[28px] leading-[36px] font-normal text-text mb-4">
