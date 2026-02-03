@@ -1,0 +1,3 @@
+setup:
+  project: hayes-personal-projects
+  config: dev
